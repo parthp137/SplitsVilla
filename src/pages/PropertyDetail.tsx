@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { Star, Heart, Share2, MapPin, Users, Bed, Bath, Home, Wifi, Car, Waves, UtensilsCrossed, Wind, ChevronLeft, AlertCircle, CheckCircle } from "lucide-react";
 
 import Footer from "@/components/common/Footer";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { mockProperties, mockReviews } from "@/utils/mockData";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateBooking, useProperty, usePropertyReviews } from "@/hooks/useApi";
 
 const amenityIcons: Record<string, React.ReactNode> = {
   WiFi: <Wifi className="h-5 w-5" />, Pool: <Waves className="h-5 w-5" />, AC: <Wind className="h-5 w-5" />,
@@ -16,15 +17,27 @@ const amenityIcons: Record<string, React.ReactNode> = {
 
 export default function PropertyDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const property = mockProperties.find((p) => p.id === id) || mockProperties[0];
-  const reviews = mockReviews.filter((r) => r.propertyId === property.id);
+  const isMongoId = /^[a-f\d]{24}$/i.test(id || "");
+  const { data: apiProperty } = useProperty(isMongoId ? id : undefined);
+  const fallbackProperty = mockProperties.find((p) => p.id === id) || mockProperties[0];
+  const property = apiProperty || fallbackProperty;
+
+  const { mutateAsync: createBooking, isPending: isCreatingBooking } = useCreateBooking();
+
+  const { data: apiReviews = [] } = usePropertyReviews(isMongoId ? id : undefined);
+  const reviews = isMongoId ? apiReviews : mockReviews.filter((r) => r.propertyId === property.id);
   const [guests, setGuests] = useState(2);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [wishlisted, setWishlisted] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
+
+  const localBookingsKey = "sv_local_bookings";
+
+  const canUseApiBooking = useMemo(() => isMongoId && Boolean(apiProperty), [isMongoId, apiProperty]);
 
   const nights = checkIn && checkOut ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000) : 3;
   const total = property.pricePerNight * nights;
@@ -73,14 +86,41 @@ export default function PropertyDetail() {
     
     setIsBooking(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const localBooking = {
+        id: `local-${Date.now()}`,
+        propertyId: property.id,
+        property,
+        guestId: "local-user",
+        checkIn,
+        checkOut,
+        nights,
+        guests,
+        totalPrice: grandTotal,
+        pricePerNight: property.pricePerNight,
+        status: "confirmed",
+        paymentStatus: "unpaid",
+        createdAt: new Date().toISOString(),
+      };
+
+      if (canUseApiBooking) {
+        await createBooking({
+          propertyId: property.id,
+          checkIn,
+          checkOut,
+          guests,
+        });
+      } else {
+        const existing = JSON.parse(localStorage.getItem(localBookingsKey) || "[]");
+        localStorage.setItem(localBookingsKey, JSON.stringify([localBooking, ...existing]));
+      }
+
       toast({ 
         title: "Booking confirmed! 🎉",
         description: `Reserved for ${nights} night${nights > 1 ? 's' : ''}, ${guests} guest${guests > 1 ? 's' : ''}`,
       });
       setCheckIn("");
       setCheckOut("");
+      navigate("/bookings");
     } catch (error) {
       setBookingError("Booking failed. Please try again.");
       toast({ 
@@ -88,7 +128,7 @@ export default function PropertyDetail() {
         description: "Error processing your booking",
         variant: "destructive"
       });
-    } finally {
+      } finally {
       setIsBooking(false);
     }
   };
@@ -252,9 +292,9 @@ export default function PropertyDetail() {
               <Button 
                 className="mt-4 w-full rounded-xl py-6 text-base font-semibold" 
                 onClick={handleReserve}
-                disabled={isBooking || !checkIn || !checkOut}
+                disabled={isBooking || isCreatingBooking || !checkIn || !checkOut}
               >
-                {isBooking ? "Reserving..." : "Reserve"}
+                {isBooking || isCreatingBooking ? "Reserving..." : "Reserve"}
               </Button>
 
               <Button 

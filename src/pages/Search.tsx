@@ -393,16 +393,16 @@ export default function SearchPage() {
           )}
 
           <motion.div
-            className="mt-6 flex gap-6"
+            className="mt-6 grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <motion.div className="hidden w-[400px] shrink-0 overflow-hidden rounded-3xl border border-primary/20 lg:block">
+            <motion.div className="hidden overflow-hidden rounded-3xl border border-primary/20 lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-7rem)]">
               <MapView properties={filtered} selectedId={selectedPropertyId} onPropertyClick={setSelectedPropertyId} />
             </motion.div>
 
-            <div className="flex-1">
+            <div className="lg:h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
               {isLoading ? (
                 <SearchResultsSkeleton />
               ) : filtered.length > 0 ? (
