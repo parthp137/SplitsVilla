@@ -25,7 +25,10 @@ export default function Navbar() {
             SV
           </div>
           <div className="leading-tight">
-            <p className="font-heading text-lg font-extrabold text-foreground sm:text-xl">
+            <p
+              className="text-xl text-foreground sm:text-2xl"
+              style={{ fontFamily: '"Segoe Script", "Lucida Handwriting", cursive' }}
+            >
               Splits<span className="text-primary">Villa</span>
             </p>
             <p className="hidden text-xs text-muted-foreground sm:block">Plan. Split. Go.</p>
