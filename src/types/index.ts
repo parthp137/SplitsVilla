@@ -99,6 +99,25 @@ export interface TripMember {
   totalContributed: number;
 }
 
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface TripInvite {
+  id: string;
+  tripId: string;
+  inviterId: string;
+  inviteeUserId?: string;
+  inviteeEmail: string;
+  status: "pending" | "accepted" | "declined" | "revoked" | "expired";
+  token?: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface Vote {
   id: string;
   tripId: string;

@@ -11,6 +11,7 @@ import votesRoutes from "./routes/votes.js";
 import notificationsRoutes from "./routes/notifications.js";
 import currencyRoutes from "./routes/currency.js";
 import aiRoutes from "./routes/ai.js";
+import usersRoutes from "./routes/users.js";
 
 import { errorHandler } from "./middleware/errorHandler.js";
 
@@ -47,6 +48,7 @@ app.use("/api/trips", votesRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/users", usersRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));

@@ -277,9 +277,6 @@ export default function BecomeAHost() {
                     <p className="text-sm font-semibold uppercase tracking-[0.24em] text-muted-foreground">How hosting works</p>
                     <h2 className="mt-2 font-heading text-3xl font-extrabold text-foreground">Four simple steps</h2>
                   </div>
-                  <p className="hidden max-w-xs text-sm text-muted-foreground md:block">
-                    Same calm, card-based treatment as the dashboard, but tuned for host onboarding.
-                  </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

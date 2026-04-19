@@ -264,6 +264,12 @@ export default function Landing() {
                 <Users className="mr-2 h-5 w-5" />
                 Start Planing Now
               </ClaymorphicButton>
+              <ClaymorphicButton
+                onClick={() => navigate("/become-host")}
+              >
+                <Shield className="mr-2 h-5 w-5" />
+                Become a Host
+              </ClaymorphicButton>
             </motion.div>
 
             {/* Trust Section */}

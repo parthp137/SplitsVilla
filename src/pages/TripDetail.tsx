@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { MapPin, Calendar, Users, Copy, ThumbsUp, ThumbsDown, Plus, Sparkles, X } from "lucide-react";
+import { MapPin, Calendar, Users, Copy, ThumbsUp, ThumbsDown, Plus, Sparkles, X, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,9 @@ import {
   useSearchProperties,
   useSettleExpenses,
   useTrip,
+  useTripInvites,
+  useInviteTripMember,
+  useUserSearch,
   useTripExpenses,
   useAddExpense,
 } from "@/hooks/useApi";
@@ -29,15 +32,22 @@ export default function TripDetail() {
   const [aiTier, setAiTier] = useState<"budget" | "standard" | "luxury">("standard");
   const [settlements, setSettlements] = useState<Array<{ from: string; to: string; amount: number }>>([]);
   const [openExpenseDialog, setOpenExpenseDialog] = useState(false);
+  const [openInviteDialog, setOpenInviteDialog] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
   const [expenseForm, setExpenseForm] = useState({
     description: "",
     amount: "",
     category: "food",
     paidBy: "",
     splitWith: [] as string[],
+    receipt: "",
   });
   
-  const { data: trip, isLoading: isTripLoading } = useTrip(id);
+  const { data: trip, isLoading: isTripLoading, refetch: refetchTrip } = useTrip(id);
+  const { data: invites = [], refetch: refetchInvites } = useTripInvites(id);
+  const { mutateAsync: inviteTripMember, isPending: isInviting } = useInviteTripMember();
+  const { data: searchResults = [], isLoading: isSearchingUsers } = useUserSearch(memberSearch);
   const { data: expenses = [], isLoading: isExpensesLoading, refetch: refetchExpenses } = useTripExpenses(id);
   const { mutateAsync: addExpense, isPending: isAddingExpense } = useAddExpense();
   const { mutateAsync: settleTripExpenses, isPending: isSettling } = useSettleExpenses();
@@ -91,10 +101,11 @@ export default function TripDetail() {
         paidBy: expenseForm.paidBy,
         splitWith: expenseForm.splitWith,
         currency: trip?.currency || "INR",
+        receipt: expenseForm.receipt || undefined,
       });
       
       toast({ title: "Expense added! 💸" });
-      setExpenseForm({ description: "", amount: "", category: "food", paidBy: "", splitWith: [] });
+      setExpenseForm({ description: "", amount: "", category: "food", paidBy: "", splitWith: [], receipt: "" });
       setOpenExpenseDialog(false);
       await refetchExpenses();
     } catch (error: any) {
@@ -155,6 +166,47 @@ export default function TripDetail() {
     } catch {
       toast({ title: "Vote failed", description: "Please try again.", variant: "destructive" });
     }
+  };
+
+  const handleInviteMember = async () => {
+    if (!id || !inviteEmail.trim()) {
+      toast({ title: "Invite email required", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await inviteTripMember({ tripId: id, email: inviteEmail.trim().toLowerCase() });
+      toast({ title: "Invite sent", description: `Invitation sent to ${inviteEmail.trim()}` });
+      setInviteEmail("");
+      setMemberSearch("");
+      setOpenInviteDialog(false);
+      await refetchInvites();
+    } catch (error: any) {
+      toast({
+        title: "Invite failed",
+        description: error?.message || "Could not send invite right now.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReceiptUpload = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2.5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please use an image under 2.5MB.", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setExpenseForm((prev) => ({ ...prev, receipt: String(reader.result || "") }));
+      toast({ title: "Receipt attached" });
+    };
+    reader.readAsDataURL(file);
   };
 
   if (isTripLoading) {
@@ -380,6 +432,40 @@ export default function TripDetail() {
                       </div>
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1">Bill photo or payment screenshot</label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleReceiptUpload(e.target.files?.[0])}
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">Optional. Upload helps everyone verify shared expenses.</p>
+                      <div className="mt-2">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">or paste image URL</label>
+                        <Input
+                          placeholder="https://..."
+                          value={expenseForm.receipt.startsWith("data:") ? "" : expenseForm.receipt}
+                          onChange={(e) => setExpenseForm({ ...expenseForm, receipt: e.target.value })}
+                        />
+                      </div>
+                      {expenseForm.receipt && (
+                        <div className="mt-3 rounded-lg border border-border p-2">
+                          <img
+                            src={expenseForm.receipt}
+                            alt="Receipt preview"
+                            className="h-28 w-full rounded object-cover"
+                          />
+                          <button
+                            type="button"
+                            className="mt-2 text-xs font-semibold text-destructive"
+                            onClick={() => setExpenseForm({ ...expenseForm, receipt: "" })}
+                          >
+                            Remove attachment
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex gap-2 pt-4">
                       <Button 
                         className="flex-1"
@@ -416,6 +502,16 @@ export default function TripDetail() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">{exp.description}</p>
                         <p className="text-xs text-muted-foreground">Paid by {exp.paidByName}</p>
+                        {exp.receipt && (
+                          <a
+                            href={exp.receipt}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-xs font-semibold text-primary hover:underline"
+                          >
+                            View bill/screenshot
+                          </a>
+                        )}
                       </div>
                       <span className="font-heading text-sm font-bold text-foreground">{formatCurrency(exp.amount)}</span>
                     </div>
@@ -556,10 +652,109 @@ export default function TripDetail() {
                   <h2 className="font-heading text-xl font-bold text-foreground">Members</h2>
                   <p className="text-sm text-muted-foreground">{trip.members.length} of {trip.groupSize} joined</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`https://splitsvilla.app/join/${trip.inviteCode}`); toast({ title: "Invite link copied!" }); }}>
-                  <Copy className="mr-1 h-3.5 w-3.5" /> Copy Invite Link
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Dialog open={openInviteDialog} onOpenChange={setOpenInviteDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <UserPlus className="mr-1 h-3.5 w-3.5" /> Invite Collaborator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Invite collaborator</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-foreground">Search by name or email</label>
+                          <Input
+                            placeholder="Type name or email"
+                            value={memberSearch}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setMemberSearch(value);
+                              setInviteEmail(value);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-foreground">Invite email</label>
+                          <Input
+                            placeholder="friend@example.com"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                          />
+                        </div>
+
+                        {memberSearch.trim().length >= 2 && (
+                          <div className="max-h-44 space-y-2 overflow-y-auto rounded-lg border border-border p-2">
+                            {isSearchingUsers && <p className="px-2 py-1 text-xs text-muted-foreground">Searching users...</p>}
+                            {!isSearchingUsers && searchResults.length === 0 && (
+                              <p className="px-2 py-1 text-xs text-muted-foreground">No matching users found. You can still invite by email.</p>
+                            )}
+                            {searchResults.map((userResult) => (
+                              <button
+                                key={userResult.id}
+                                type="button"
+                                onClick={() => setInviteEmail(userResult.email)}
+                                className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left hover:bg-muted"
+                              >
+                                <span>
+                                  <span className="block text-sm font-medium text-foreground">{userResult.name}</span>
+                                  <span className="block text-xs text-muted-foreground">{userResult.email}</span>
+                                </span>
+                                <span className="text-xs font-medium text-primary">Select</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button className="flex-1" onClick={handleInviteMember} disabled={isInviting}>
+                            {isInviting ? "Sending..." : "Send Invite"}
+                          </Button>
+                          <Button variant="outline" className="flex-1" onClick={() => setOpenInviteDialog(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`https://splitsvilla.app/join/${trip.inviteCode}`); toast({ title: "Invite link copied!" }); }}>
+                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy Invite Link
+                  </Button>
+                </div>
               </div>
+
+              {invites.filter((invite) => invite.status === "pending").length > 0 && (
+                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">Pending invites</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        refetchInvites();
+                        refetchTrip();
+                      }}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {invites
+                      .filter((invite) => invite.status === "pending")
+                      .slice(0, 6)
+                      .map((invite) => (
+                        <div key={invite.id} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+                          <span className="text-sm text-foreground">{invite.inviteeEmail}</span>
+                          <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">pending</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {trip.members.map((m) => (
                   <div key={m.userId} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">

@@ -110,6 +110,25 @@ export function useTrip(id: string | undefined) {
   });
 }
 
+export function useTripInvites(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ["trip-invites", tripId],
+    queryFn: () => (tripId ? api.getTripInvites(tripId) : []),
+    enabled: !!tripId,
+  });
+}
+
+export function useInviteTripMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, email }: { tripId: string; email: string }) => api.inviteTripMember(tripId, email),
+    onSuccess: (_, { tripId }) => {
+      queryClient.invalidateQueries({ queryKey: ["trip-invites", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+  });
+}
+
 export function useJoinTripWithCode() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -174,6 +193,15 @@ export function useNotifications() {
     queryKey: ["notifications"],
     queryFn: () => api.getNotifications(),
     refetchInterval: 30000, // Poll every 30s
+  });
+}
+
+export function useUserSearch(query: string) {
+  return useQuery({
+    queryKey: ["user-search", query],
+    queryFn: () => api.searchUsers(query),
+    enabled: query.trim().length >= 2,
+    staleTime: 15000,
   });
 }
 
