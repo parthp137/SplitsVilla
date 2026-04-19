@@ -3,21 +3,24 @@ import { useParams, Link } from "react-router-dom";
 import { MapPin, Calendar, Users, Copy, ThumbsUp, ThumbsDown, Plus, Sparkles, X, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { formatDateRange, formatDate } from "@/utils/formatDate";
+import { mockProperties } from "@/utils/mockData";
 import PropertyCard from "@/components/property/PropertyCard";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useAIBudgetEstimate,
   useCastVote,
-  useSearchProperties,
+  usePropertiesByIds,
   useSettleExpenses,
   useTrip,
   useTripInvites,
   useInviteTripMember,
+  useTripVoteSummary,
   useUserSearch,
   useTripExpenses,
   useAddExpense,
@@ -52,10 +55,32 @@ export default function TripDetail() {
   const { mutateAsync: addExpense, isPending: isAddingExpense } = useAddExpense();
   const { mutateAsync: settleTripExpenses, isPending: isSettling } = useSettleExpenses();
   const { mutateAsync: estimateBudget, data: aiEstimate, isPending: isEstimating } = useAIBudgetEstimate();
-  const { data: destinationProperties = [], isLoading: isPropertiesLoading } = useSearchProperties(
-    trip ? { city: trip.destination } : undefined,
-  );
+  const savedPropertyIds = useMemo(() => {
+    if (!trip?.savedProperties?.length) return [] as string[];
+    return Array.from(new Set(trip.savedProperties.map((item) => item.propertyId).filter(Boolean)));
+  }, [trip?.savedProperties]);
+  const { data: savedProperties = [], isLoading: isSavedPropertiesLoading } = usePropertiesByIds(savedPropertyIds);
+  const { data: voteSummary = [] } = useTripVoteSummary(id);
   const { mutateAsync: castVote } = useCastVote();
+
+  const savedPropertyMap = useMemo(() => {
+    const map = new Map<string, any>();
+    savedProperties.forEach((property) => map.set(property.id, property));
+    mockProperties.forEach((property) => {
+      if (!map.has(property.id)) {
+        map.set(property.id, property);
+      }
+    });
+    return map;
+  }, [savedProperties]);
+
+  const voteSummaryMap = useMemo(() => {
+    const map = new Map<string, { up: number; down: number; userVote: "up" | "down" | null }>();
+    voteSummary.forEach((row) => {
+      map.set(row.propertyId, { up: row.up, down: row.down, userVote: row.userVote });
+    });
+    return map;
+  }, [voteSummary]);
   
   // Log trip loading state
   useEffect(() => {
@@ -298,30 +323,61 @@ export default function TripDetail() {
                 <h2 className="font-heading text-xl font-bold text-foreground">Shortlisted Properties</h2>
                 <Link to="/search" className="text-sm font-semibold text-primary hover:underline">Search More</Link>
               </div>
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {isPropertiesLoading &&
-                  [...Array(3)].map((_, i) => <Skeleton key={i} className="h-72 w-full rounded-xl" />)}
-                {!isPropertiesLoading && destinationProperties.slice(0, 6).map((p) => (
-                  <div key={p.id} className="relative">
-                    <PropertyCard property={p} groupSize={trip.groupSize} showPerPerson />
-                    <div className="mt-2 flex items-center gap-2">
-                      <button
-                        className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-success/10"
-                        onClick={() => handleVote(p.id, "up")}
-                      >
-                        <ThumbsUp className="h-3.5 w-3.5 text-success" /> <span className="font-medium">Upvote</span>
-                      </button>
-                      <button
-                        className="flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-destructive/10"
-                        onClick={() => handleVote(p.id, "down")}
-                      >
-                        <ThumbsDown className="h-3.5 w-3.5 text-destructive" /> <span className="font-medium">Downvote</span>
-                      </button>
+              {trip.savedProperties?.length ? (
+                <div className="mb-4 rounded-xl border border-border bg-muted/30 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-foreground">{trip.savedProperties.length} property shortlist{trip.savedProperties.length > 1 ? "s" : ""}</p>
+                      <p className="text-sm text-muted-foreground">Saved directly from property detail while planning the trip.</p>
                     </div>
+                    <Badge variant="secondary">Saved stays</Badge>
                   </div>
-                ))}
-                {!isPropertiesLoading && destinationProperties.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No properties found for {trip.destination} yet.</p>
+                </div>
+              ) : null}
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {isSavedPropertiesLoading &&
+                  [...Array(3)].map((_, i) => <Skeleton key={i} className="h-72 w-full rounded-xl" />)}
+                {!isSavedPropertiesLoading && savedPropertyIds.map((propertyId) => {
+                  const p = savedPropertyMap.get(propertyId);
+                  const voteRow = voteSummaryMap.get(propertyId) || { up: 0, down: 0, userVote: null };
+
+                  if (!p) {
+                    return (
+                      <div key={propertyId} className="rounded-xl border border-dashed border-border bg-card p-4">
+                        <p className="font-semibold text-foreground">Saved stay unavailable</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Property id: {propertyId}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">This stay was saved, but details are currently unavailable.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={p.id} className="relative">
+                      <Badge className="absolute left-3 top-3 z-10 shadow-sm">Saved</Badge>
+                      <PropertyCard property={p} groupSize={trip.groupSize} showPerPerson />
+                      <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                        <span>Votes: {voteRow.up} up · {voteRow.down} down</span>
+                        <Link className="font-semibold text-primary hover:underline" to={`/property/${p.id}`}>View details</Link>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          className={`flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-success/10 ${voteRow.userVote === "up" ? "bg-success/10" : ""}`}
+                          onClick={() => handleVote(p.id, "up")}
+                        >
+                          <ThumbsUp className="h-3.5 w-3.5 text-success" /> <span className="font-medium">Upvote</span>
+                        </button>
+                        <button
+                          className={`flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-destructive/10 ${voteRow.userVote === "down" ? "bg-destructive/10" : ""}`}
+                          onClick={() => handleVote(p.id, "down")}
+                        >
+                          <ThumbsDown className="h-3.5 w-3.5 text-destructive" /> <span className="font-medium">Downvote</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!isSavedPropertiesLoading && savedPropertyIds.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No shortlisted stays yet. Save a property from Property Details to see it here.</p>
                 )}
               </div>
             </div>

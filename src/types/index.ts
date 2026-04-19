@@ -84,6 +84,11 @@ export interface Trip {
   members: TripMember[];
   status: "planning" | "active" | "archived" | "completed";
   finalizedProperty?: Property;
+  savedProperties?: {
+    propertyId: string;
+    addedBy?: string;
+    addedAt: string;
+  }[];
   inviteCode: string;
   totalExpenses: number;
   createdAt: string;
@@ -124,6 +129,13 @@ export interface Vote {
   propertyId: string;
   userId: string;
   vote: "up" | "down";
+}
+
+export interface VoteSummary {
+  propertyId: string;
+  up: number;
+  down: number;
+  userVote: "up" | "down" | null;
 }
 
 export interface Expense {

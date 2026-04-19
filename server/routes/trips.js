@@ -61,6 +61,10 @@ router.get("/", authMiddleware, asyncHandler(async (req, res) => {
 router.get("/:id", authMiddleware, asyncHandler(async (req, res) => {
   const trip = await Trip.findById(req.params.id);
   if (!trip) return res.status(404).json({ message: "Trip not found" });
+  const isMember = trip.members.some((member) => member.userId.toString() === req.userId);
+  if (!isMember) {
+    return res.status(403).json({ message: "You do not have access to this trip" });
+  }
   res.json(trip);
 }));
 
@@ -205,6 +209,36 @@ router.post(
     const user = await User.findById(req.userId);
     if (!trip.members.find((m) => m.userId.equals(req.userId))) {
       trip.members.push({ userId: req.userId, name: user.name, email: user.email, avatar: user.avatar });
+      await trip.save();
+    }
+
+    res.json(trip);
+  })
+);
+
+router.post(
+  "/:tripId/properties",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const { propertyId } = req.body;
+    const savedPropertyId = (propertyId || "").toString().trim();
+    if (!savedPropertyId) {
+      return res.status(400).json({ message: "Property ID is required" });
+    }
+
+    const trip = await Trip.findById(req.params.tripId);
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+    const isMember = trip.members.some((member) => member.userId.toString() === req.userId);
+    if (!isMember) {
+      return res.status(403).json({ message: "You must be part of the trip to save properties" });
+    }
+
+    trip.savedProperties = trip.savedProperties || [];
+    const alreadySaved = trip.savedProperties.some((saved) => saved.propertyId.toString() === savedPropertyId);
+
+    if (!alreadySaved) {
+      trip.savedProperties.push({ propertyId: savedPropertyId, addedBy: req.userId });
       await trip.save();
     }
 

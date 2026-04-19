@@ -31,6 +31,16 @@ function getBookingProperty(booking: Booking | any): Property | undefined {
   return undefined;
 }
 
+function getBookingTrip(booking: Booking | any) {
+  if (booking?.trip && typeof booking.trip === "object") {
+    return booking.trip;
+  }
+  if (booking?.tripId && typeof booking.tripId === "object") {
+    return booking.tripId;
+  }
+  return undefined;
+}
+
 const localBookingsKey = "sv_local_bookings";
 
 export default function Bookings() {
@@ -184,6 +194,11 @@ export default function Bookings() {
                     <p className="mt-1 text-sm text-muted-foreground">
                       {property?.location?.city || "Unknown city"} · {b.nights} nights · {b.guests} guests
                     </p>
+                    {getBookingTrip(b) ? (
+                      <p className="mt-1 text-sm text-primary">
+                        Linked trip: {getBookingTrip(b)?.title || "Trip"}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-sm text-muted-foreground">
                       {new Date(b.checkIn).toLocaleDateString()} — {new Date(b.checkOut).toLocaleDateString()}
                     </p>

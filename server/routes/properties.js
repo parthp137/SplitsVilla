@@ -1,5 +1,6 @@
 import express from "express";
 import { body } from "express-validator";
+import mongoose from "mongoose";
 import Property from "../models/Property.js";
 import Review from "../models/Review.js";
 import Booking from "../models/Booking.js";
@@ -26,6 +27,27 @@ router.get(
     if (rating) filters.rating = { $gte: parseFloat(rating) };
 
     const properties = await Property.find(filters).limit(50);
+    res.json(properties);
+  })
+);
+
+router.get(
+  "/batch",
+  optionalAuth,
+  asyncHandler(async (req, res) => {
+    const ids = (req.query.ids || "")
+      .toString()
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    const mongoIds = ids.filter((id) => mongoose.isValidObjectId(id));
+
+    if (!mongoIds.length) {
+      return res.json([]);
+    }
+
+    const properties = await Property.find({ _id: { $in: mongoIds } }).limit(100);
     res.json(properties);
   })
 );
