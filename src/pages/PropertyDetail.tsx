@@ -1,13 +1,46 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Star, Heart, Share2, MapPin, Users, Bed, Bath, Home, Wifi, Car, Waves, UtensilsCrossed, Wind, ChevronLeft, AlertCircle, CheckCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { Star, Heart, Share2, MapPin, Users, Bed, Bath, Home, Wifi, Car, Waves, UtensilsCrossed, Wind, ChevronLeft, AlertCircle, CheckCircle, CalendarDays, Loader2 } from "lucide-react";
 
 import Footer from "@/components/common/Footer";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mockProperties, mockReviews } from "@/utils/mockData";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateBooking, useProperty, usePropertyReviews, useShortlistProperty, useTrips } from "@/hooks/useApi";
+import type { Property } from "@/types";
+import { readWishlistIds, toggleWishlistId } from "@/lib/wishlist";
+
+const HOST_LISTINGS_KEY = "sv_host_listings";
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200";
+
+type HostLocalListing = {
+  id: string;
+  title: string;
+  type: string;
+  address: string;
+  city: string;
+  country: string;
+  pricePerNight: number;
+  maxGuests: number;
+  bedrooms: number;
+  bathrooms: number;
+  images: string[];
+  description: string;
+  amenities: string[];
+  createdAt: string;
+};
+
+function getFallbackCoordinates(seed: string) {
+  const hash = Array.from(seed || "host").reduce((acc, char, idx) => acc + char.charCodeAt(0) * (idx + 1), 0);
+  const lat = 20.5937 + ((hash % 300) - 150) * 0.01;
+  const lng = 78.9629 + ((hash % 500) - 250) * 0.01;
+  return { lat, lng };
+}
 
 const amenityIcons: Record<string, React.ReactNode> = {
   WiFi: <Wifi className="h-5 w-5" />, Pool: <Waves className="h-5 w-5" />, AC: <Wind className="h-5 w-5" />,
@@ -16,21 +49,112 @@ const amenityIcons: Record<string, React.ReactNode> = {
 
 export default function PropertyDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const property = mockProperties.find((p) => p.id === id) || mockProperties[0];
-  const reviews = mockReviews.filter((r) => r.propertyId === property.id);
+  const isMongoId = /^[a-f\d]{24}$/i.test(id || "");
+  const { data: apiProperty } = useProperty(isMongoId ? id : undefined);
+  const hostedProperties = useMemo<Property[]>(() => {
+    try {
+      const raw = window.localStorage.getItem(HOST_LISTINGS_KEY);
+      const parsed = raw ? (JSON.parse(raw) as HostLocalListing[]) : [];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .filter((listing) => Boolean(listing?.id && listing?.title))
+        .map((listing) => {
+          const coords = getFallbackCoordinates(`${listing.city}-${listing.id}`);
+          return {
+            id: listing.id,
+            hostId: "host-local",
+            hostName: "You",
+            title: listing.title,
+            description: listing.description || "Hosted listing",
+            type: (listing.type?.toLowerCase() || "villa") as Property["type"],
+            location: {
+              address: listing.address || "Address pending",
+              city: listing.city || "City pending",
+              country: listing.country || "India",
+              lat: coords.lat,
+              lng: coords.lng,
+            },
+            images: listing.images?.length ? listing.images : [FALLBACK_IMAGE],
+            pricePerNight: Number(listing.pricePerNight || 0),
+            maxGuests: Number(listing.maxGuests || 1),
+            bedrooms: Number(listing.bedrooms || 1),
+            bathrooms: Number(listing.bathrooms || 1),
+            beds: Math.max(1, Number(listing.bedrooms || 1)),
+            amenities: listing.amenities?.length ? listing.amenities : ["WiFi"],
+            rules: {
+              checkInTime: "14:00",
+              checkOutTime: "11:00",
+              smokingAllowed: false,
+              petsAllowed: true,
+              partiesAllowed: false,
+            },
+            rating: 4.7,
+            reviewCount: 0,
+            isFeatured: false,
+            isActive: true,
+            createdAt: listing.createdAt || new Date().toISOString(),
+          };
+        });
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const fallbackProperty =
+    mockProperties.find((p) => p.id === id) || hostedProperties.find((p) => p.id === id) || mockProperties[0];
+  const property = apiProperty || fallbackProperty;
+
+  const { mutateAsync: createBooking, isPending: isCreatingBooking } = useCreateBooking();
+
+  const { data: apiReviews = [] } = usePropertyReviews(isMongoId ? id : undefined);
+  const reviews = isMongoId ? apiReviews : mockReviews.filter((r) => r.propertyId === property.id);
   const [guests, setGuests] = useState(2);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [wishlisted, setWishlisted] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
+  const [tripMode, setTripMode] = useState<"none" | "attach">("none");
+  const [selectedTripId, setSelectedTripId] = useState("");
+
+  const localBookingsKey = "sv_local_bookings";
+
+  useEffect(() => {
+    setWishlisted(readWishlistIds().includes(property.id));
+  }, [property.id]);
+
+  const canUseApiBooking = useMemo(() => isMongoId && Boolean(apiProperty), [isMongoId, apiProperty]);
+  const { data: trips = [] } = useTrips();
+  const { mutateAsync: shortlistProperty, isPending: isShortlistingProperty } = useShortlistProperty();
 
   const nights = checkIn && checkOut ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000) : 3;
   const total = property.pricePerNight * nights;
   const cleaningFee = 1500;
   const serviceFee = Math.round(total * 0.05);
   const grandTotal = total + cleaningFee + serviceFee;
+
+  const handleShortlist = async () => {
+    if (!selectedTripId) {
+      setBookingError("Pick a trip first to save this stay.");
+      return;
+    }
+
+    try {
+      await shortlistProperty({ tripId: selectedTripId, propertyId: property.id });
+      const selectedTrip = trips.find((trip) => trip.id === selectedTripId);
+      toast({
+        title: "Saved to trip shortlist",
+        description: selectedTrip ? `${property.title} was added to ${selectedTrip.title}.` : "Property attached to your trip.",
+      });
+    } catch (error: any) {
+      setBookingError(error?.message || "We could not save this property to the trip. Try again.");
+    }
+  };
 
   const validateBooking = (): boolean => {
     setBookingError(null);
@@ -73,14 +197,44 @@ export default function PropertyDetail() {
     
     setIsBooking(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const localBooking = {
+        id: `local-${Date.now()}`,
+        propertyId: property.id,
+        property,
+        guestId: "local-user",
+        checkIn,
+        checkOut,
+        nights,
+        guests,
+        totalPrice: grandTotal,
+        pricePerNight: property.pricePerNight,
+        status: "confirmed",
+        paymentStatus: "unpaid",
+        createdAt: new Date().toISOString(),
+      };
+
+      if (canUseApiBooking) {
+        await createBooking({
+          propertyId: property.id,
+          checkIn,
+          checkOut,
+          guests,
+          tripId: tripMode === "attach" ? selectedTripId : undefined,
+        });
+      } else {
+        const existing = JSON.parse(localStorage.getItem(localBookingsKey) || "[]");
+        localStorage.setItem(localBookingsKey, JSON.stringify([{ ...localBooking, tripId: tripMode === "attach" ? selectedTripId : undefined }, ...existing]));
+      }
+
       toast({ 
         title: "Booking confirmed! 🎉",
-        description: `Reserved for ${nights} night${nights > 1 ? 's' : ''}, ${guests} guest${guests > 1 ? 's' : ''}`,
+        description: tripMode === "attach" && selectedTripId
+          ? `Reserved for ${nights} night${nights > 1 ? 's' : ''} and attached to your trip.`
+          : `Reserved for ${nights} night${nights > 1 ? 's' : ''}, ${guests} guest${guests > 1 ? 's' : ''}`,
       });
       setCheckIn("");
       setCheckOut("");
+      navigate(tripMode === "attach" && selectedTripId ? `/trips/${selectedTripId}` : "/bookings");
     } catch (error) {
       setBookingError("Booking failed. Please try again.");
       toast({ 
@@ -88,7 +242,7 @@ export default function PropertyDetail() {
         description: "Error processing your booking",
         variant: "destructive"
       });
-    } finally {
+      } finally {
       setIsBooking(false);
     }
   };
@@ -112,7 +266,13 @@ export default function PropertyDetail() {
             <button className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent">
               <Share2 className="h-4 w-4" /> Share
             </button>
-            <button onClick={() => setWishlisted(!wishlisted)} className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent">
+            <button
+              onClick={() => {
+                const result = toggleWishlistId(property.id);
+                setWishlisted(result.isWishlisted);
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent"
+            >
               <Heart className={`h-4 w-4 ${wishlisted ? "fill-primary text-primary" : ""}`} /> Save
             </button>
           </div>
@@ -249,12 +409,76 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
+              <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Trip</p>
+                    <p className="text-xs text-muted-foreground">Attach this stay to a trip or keep it as a standalone reservation.</p>
+                  </div>
+                  <Badge variant="outline">Optional</Badge>
+                </div>
+
+                <RadioGroup
+                  value={tripMode}
+                  onValueChange={(value) => {
+                    const nextMode = value as "none" | "attach";
+                    setTripMode(nextMode);
+                    if (nextMode === "attach" && !selectedTripId) {
+                      setSelectedTripId(trips[0]?.id || "");
+                    }
+                  }}
+                  className="mt-3 gap-3"
+                >
+                  <label className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 text-sm">
+                    <RadioGroupItem value="none" />
+                    <div>
+                      <p className="font-medium text-foreground">Reserve only</p>
+                      <p className="text-xs text-muted-foreground">Best when you are booking for yourself.</p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 text-sm">
+                    <RadioGroupItem value="attach" />
+                    <div>
+                      <p className="font-medium text-foreground">Reserve and attach to a trip</p>
+                      <p className="text-xs text-muted-foreground">Best when the whole group is already planning together.</p>
+                    </div>
+                  </label>
+                </RadioGroup>
+
+                {tripMode === "attach" && (
+                  <div className="mt-4 space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-foreground">Select trip</label>
+                      <Select value={selectedTripId} onValueChange={setSelectedTripId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={trips.length ? "Choose a trip" : "No trips yet"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {trips.map((trip) => (
+                            <SelectItem key={trip.id} value={trip.id}>
+                              {trip.title} · {trip.destination}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 rounded-lg bg-background p-3 text-xs text-muted-foreground">
+                      <span>{trips.length ? `${trips.length} trip${trips.length > 1 ? "s" : ""} available` : "No trips available yet"}</span>
+                      <Link to="/create-trip" className="font-semibold text-primary hover:underline">
+                        Create trip
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Button 
                 className="mt-4 w-full rounded-xl py-6 text-base font-semibold" 
                 onClick={handleReserve}
-                disabled={isBooking || !checkIn || !checkOut}
+                disabled={isBooking || isCreatingBooking || !checkIn || !checkOut || (tripMode === "attach" && !selectedTripId)}
               >
-                {isBooking ? "Reserving..." : "Reserve"}
+                {isBooking || isCreatingBooking ? "Reserving..." : tripMode === "attach" ? "Reserve and attach" : "Reserve"}
               </Button>
 
               <Button 
@@ -262,13 +486,19 @@ export default function PropertyDetail() {
                 className="mt-2 w-full rounded-xl py-5 text-sm" 
                 onClick={() => {
                   if (!checkIn || !checkOut) {
-                    setBookingError("Please select dates first before adding to trip");
+                    setBookingError("Please select dates first before saving to a trip");
                     return;
                   }
-                  toast({ title: "Added to trip!" });
+                  if (!selectedTripId) {
+                    setTripMode("attach");
+                    setBookingError("Choose a trip first.");
+                    return;
+                  }
+                  void handleShortlist();
                 }}
+                disabled={isShortlistingProperty || !checkIn || !checkOut}
               >
-                Add to a Trip
+                {isShortlistingProperty ? "Saving..." : "Save to trip shortlist"}
               </Button>
 
               <div className="mt-4 space-y-2 text-sm">
@@ -286,6 +516,7 @@ export default function PropertyDetail() {
           </div>
         </div>
       </div>
+
       <Footer />
     </div>
   );

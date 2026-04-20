@@ -35,6 +35,30 @@ export const PropertySearchSchema = z.object({
   sortBy: z.enum(["rating", "price-low", "price-high", "newest"]).optional(),
 });
 
+export const BecomeHostSchema = z.object({
+  hostName: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(8, "Phone number must be at least 8 characters"),
+  propertyTitle: z.string().min(4, "Property title must be at least 4 characters"),
+  propertyType: z.enum(["villa", "apartment", "hotel", "hostel", "resort", "cottage"]),
+  address: z.string().min(5, "Address must be at least 5 characters"),
+  city: z.string().min(2, "City is required"),
+  country: z.string().min(2, "Country is required"),
+  nightlyPrice: z.coerce.number().min(1, "Nightly price must be greater than 0"),
+  maxGuests: z.coerce.number().int().min(1).max(20),
+  bedrooms: z.coerce.number().int().min(0).max(20),
+  bathrooms: z.coerce.number().int().min(0).max(20),
+  description: z.string().min(20, "Description must be at least 20 characters"),
+  amenities: z.string().optional(),
+  imageUrls: z.string().optional(),
+  checkInTime: z.string().min(1, "Check-in time required"),
+  checkOutTime: z.string().min(1, "Check-out time required"),
+  allowSmoking: z.boolean().default(false),
+  allowPets: z.boolean().default(true),
+  allowParties: z.boolean().default(false),
+  termsAccepted: z.boolean().refine((value) => value === true, "You must agree to host terms"),
+});
+
 // Trip Schemas
 export const CreateTripSchema = z.object({
   title: z.string().min(3, "Trip title must be at least 3 characters"),
@@ -83,6 +107,7 @@ export const ReviewSchema = z.object({
 export type LoginFormData = z.infer<typeof LoginSchema>;
 export type RegisterFormData = z.infer<typeof RegisterSchema>;
 export type PropertySearch = z.infer<typeof PropertySearchSchema>;
+export type BecomeHostFormData = z.infer<typeof BecomeHostSchema>;
 export type CreateTripData = z.infer<typeof CreateTripSchema>;
 export type BookingData = z.infer<typeof BookingSchema>;
 export type ExpenseData = z.infer<typeof ExpenseSchema>;

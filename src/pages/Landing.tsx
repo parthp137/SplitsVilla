@@ -19,7 +19,6 @@ import {
   AnimatedTypography,
   GlassmorphicCard,
   ClaymorphicButton,
-  LiquidButton,
   PageTransitionWrapper,
   BlurReveal,
   AnimatedCounter,
@@ -170,21 +169,19 @@ export default function Landing() {
         </div>
 
         {/* HERO - REDESIGNED WITH BETTER BACKGROUND */}
-        <section className="relative overflow-hidden">
+        <section className="relative min-h-[92vh] overflow-hidden lg:min-h-screen">
           {/* Premium background image */}
-          <div className="absolute inset-0">
+          <div className="fixed inset-0 z-0">
             <img
               src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop"
               alt="DreamTravel"
               className="h-full w-full object-cover"
             />
-            {/* Gradient overlays for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-black/50" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />
+            <div className="absolute inset-0 bg-black/30" />
           </div>
 
           {/* Animated background elements */}
-          <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 z-10 overflow-hidden">
             <motion.div
               className="absolute top-1/4 left-1/3 h-96 w-96 rounded-full bg-primary/10 blur-3xl"
               animate={{
@@ -204,59 +201,49 @@ export default function Landing() {
           </div>
 
           {/* Content */}
-          <div className="relative mx-auto max-w-6xl px-4 py-32 sm:px-6 lg:px-8 lg:py-40">
-            {/* SplitsVilla Badge - Prominent */}
-            <motion.div
-              className="mb-8 inline-flex items-center gap-3 rounded-2xl border border-primary/60 bg-primary/25 px-6 py-3 backdrop-blur-lg shadow-2xl"
-              initial={{ opacity: 0, y: -30, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.7, type: "spring" }}
+          <div className="relative z-20 mx-auto flex min-h-[92vh] max-w-6xl flex-col justify-center px-4 py-24 sm:px-6 lg:min-h-screen lg:px-8 lg:py-32">
+            <motion.h2
+              className="-mt-4 mb-10 text-5xl text-slate-950 sm:text-6xl"
+              style={{ fontFamily: '"Segoe Script", "Lucida Handwriting", cursive' }}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
             >
-              <motion.span
-                className="text-3xl"
-                animate={{ rotate: 360, scale: [1, 1.2, 1] }}
-                transition={{ duration: 4, repeat: Infinity }}
-              >
-                🌴
-              </motion.span>
-              <div className="flex flex-col">
-                <span className="text-lg font-black text-white">SplitsVilla</span>
-                <span className="text-xs font-semibold text-orange-300">Where Memories Meet Savings</span>
-              </div>
-            </motion.div>
+              Splits<span className="text-primary">Villa</span>
+            </motion.h2>
 
             {/* Main Headline */}
             <motion.h1
-              className="mb-6 max-w-3xl text-5xl sm:text-6xl lg:text-7xl font-black leading-tight text-white"
+              className="mb-6 max-w-3xl text-4xl font-black leading-tight text-slate-950 sm:text-5xl lg:text-6xl"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               style={{
-                textShadow: "0 4px 20px rgba(0,0,0,0.9), 0 0 40px rgba(249, 115, 22, 0.3)",
+                textShadow: "0 2px 10px rgba(255,255,255,0.35)",
               }}
             >
               Travel Together,{" "}
               <motion.span
-                className="block text-transparent bg-gradient-to-r from-yellow-200 via-orange-300 to-orange-500 bg-clip-text py-2"
+                className="block bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text py-2 text-transparent"
                 initial={{ opacity: 0, scale: 0.7 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.9, delay: 0.4, type: "spring" }}
               >
-                Split Smarter ✨
+                Split Smarter ✦
               </motion.span>
             </motion.h1>
 
             {/* Subheading */}
             <motion.p
-              className="mb-10 max-w-2xl text-lg sm:text-xl text-white/95 font-semibold leading-relaxed"
+              className="mb-10 max-w-none whitespace-nowrap text-lg font-bold text-slate-800 sm:text-xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.5 }}
               style={{
-                textShadow: "0 2px 10px rgba(0,0,0,0.8)",
+                textShadow: "0 1px 6px rgba(255,255,255,0.4)",
               }}
             >
-              🏝️ Plan incredible group vacations | 🏠 Find premium stays together | 💰 Split expenses fairly
+              Plan incredible group vacations | Find premium stays together | Split expenses fairly
             </motion.p>
 
             {/* CTA Buttons */}
@@ -266,25 +253,29 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              <LiquidButton 
+              <ClaymorphicButton 
                 onClick={() => navigate("/search")}
-                className="px-8 py-4 text-base font-bold"
               >
                 <Search className="mr-2 h-5 w-5" />
                 Explore Properties
-              </LiquidButton>
+              </ClaymorphicButton>
               <ClaymorphicButton 
                 onClick={() => navigate("/dashboard/trips/create")}
-                className="px-8 py-4 text-base font-bold"
               >
                 <Users className="mr-2 h-5 w-5" />
                 Start Planing Now
+              </ClaymorphicButton>
+              <ClaymorphicButton
+                onClick={() => navigate("/become-host")}
+              >
+                <Shield className="mr-2 h-5 w-5" />
+                Become a Host
               </ClaymorphicButton>
             </motion.div>
 
             {/* Trust Section */}
             <motion.div
-              className="flex items-center gap-4 text-white/90"
+              className="flex items-center gap-4 text-slate-800"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.7 }}
@@ -293,19 +284,21 @@ export default function Landing() {
                 {[1, 2, 3].map((i) => (
                   <motion.div
                     key={i}
-                    className="h-10 w-10 rounded-full border-2 border-white bg-gradient-to-br from-primary to-secondary shadow-lg"
+                    className="h-10 w-10 rounded-full border-2 border-slate-200 bg-gradient-to-br from-slate-600 to-slate-300 shadow-lg"
                     animate={{ y: [0, -5, 0] }}
                     transition={{ duration: 2, delay: i * 0.1, repeat: Infinity }}
                   />
                 ))}
               </div>
               <div>
-                <div className="font-bold text-white">10,000+ Happy Travelers</div>
-                <div className="text-sm text-orange-300">Already splitting smarter with SplitsVilla 🎉</div>
+                <div className="font-bold text-slate-950">10,000+ Happy Travelers</div>
+                <div className="text-sm text-slate-700">Already splitting smarter with SplitsVilla ◌</div>
               </div>
             </motion.div>
           </div>
         </section>
+
+        <div className="relative z-30 bg-black">
 
         {/* SCROLLYTELLING STATS */}
         <ScrollytellingSection onScroll={setScrollProgress}>
@@ -339,9 +332,12 @@ export default function Landing() {
                     className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/10 p-8 text-center backdrop-blur-sm"
                   >
                     <motion.div
-                      className="text-4xl font-black text-primary"
+                      className="text-4xl font-black text-white"
+                      whileInView={{ scale: 1 }}
+                      initial={{ scale: 1 }}
+                      viewport={{ once: false, margin: "-50px" }}
                       style={{
-                        opacity: Math.max(0, scrollProgress - i * 0.1),
+                        opacity: 1,
                       }}
                     >
                       <AnimatedCounter
@@ -351,7 +347,7 @@ export default function Landing() {
                         suffix={stat.suffix}
                       />
                     </motion.div>
-                    <p className="mt-2 text-sm font-semibold text-muted-foreground">
+                    <p className="mt-2 text-sm font-semibold text-slate-700">
                       {stat.label}
                     </p>
                   </motion.div>
@@ -373,7 +369,7 @@ export default function Landing() {
 
           <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
             <motion.div
-              className="flex gap-3 overflow-x-auto py-4 scrollbar-hide md:gap-4"
+              className="flex justify-center gap-3 overflow-x-auto py-4 scrollbar-hide md:gap-4"
               initial="hidden"
               animate="visible"
               variants={{
@@ -397,21 +393,13 @@ export default function Landing() {
                     hidden: { opacity: 0, scale: 0.5, y: -20 },
                     visible: { opacity: 1, scale: 1, y: 0 },
                   }}
-                  whileHover={{ scale: 1.15, rotate: 10 }}
+                  whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.85 }}
                 >
                   {activeCategory === cat.key && (
                     <motion.div
                       layoutId="activeTab"
-                      className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/50 to-secondary/30 blur-lg -z-10"
-                      animate={{
-                        boxShadow: [
-                          "0 0 20px rgba(255, 56, 92, 0.4)",
-                          "0 0 40px rgba(255, 56, 92, 0.6)",
-                          "0 0 20px rgba(255, 56, 92, 0.4)",
-                        ],
-                      }}
-                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 rounded-2xl bg-primary/25 blur-lg -z-10 shadow-[0_0_20px_rgba(255,56,92,0.25)]"
                     />
                   )}
 
@@ -419,8 +407,8 @@ export default function Landing() {
                     className="relative z-10 text-2xl"
                     animate={
                       activeCategory === cat.key
-                        ? { rotate: 360, scale: 1.2 }
-                        : { rotate: 0, scale: 1 }
+                        ? { scale: 1.05 }
+                        : { scale: 1 }
                     }
                     transition={{ duration: 0.6 }}
                   >
@@ -449,7 +437,7 @@ export default function Landing() {
           <div className="relative mx-auto max-w-7xl px-4 lg:px-8">
             <BlurReveal>
               <h2 className="font-heading text-4xl font-black text-foreground">
-                🔥{" "}
+                ✦{" "}
                 {activeCategory === "trending"
                   ? "Trending Now"
                   : categoryIcons.find((c) => c.key === activeCategory)
@@ -557,7 +545,7 @@ export default function Landing() {
                 >
                   <motion.div
                     className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/40 to-secondary/40"
-                    whileHover={{ scale: 1.2, rotate: 360 }}
+                    whileHover={{ scale: 1.2 }}
                     transition={{ duration: 0.6 }}
                   >
                     <Icon className="h-8 w-8 text-white" />
@@ -615,21 +603,13 @@ export default function Landing() {
                   }}
                   whileHover={{
                     scale: 1.1,
-                    boxShadow: "0 20px 50px rgba(255, 56, 92, 0.3)",
+                    boxShadow: "0 20px 50px rgba(59, 130, 246, 0.28)",
                   }}
                   className="rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/20 to-transparent p-8 backdrop-blur-lg"
                 >
-                  <motion.div
-                    className="text-5xl font-black text-primary/60"
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      delay: idx * 0.2,
-                    }}
-                  >
+                  <div className="text-5xl font-black text-primary/60">
                     {step}
-                  </motion.div>
+                  </div>
                   <h3 className="mt-4 font-heading text-xl font-bold text-foreground">
                     {title}
                   </h3>
@@ -697,6 +677,7 @@ export default function Landing() {
         </section>
 
         <Footer />
+        </div>
       </div>
     </PageTransitionWrapper>
   );

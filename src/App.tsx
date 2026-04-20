@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import FloatingNavbar from "@/components/common/FloatingNavbar";
+import Navbar from "@/components/common/Navbar";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import CommandPalette from "@/components/CommandPalette";
 import { FormSkeleton } from "@/components/SkeletonLoaders";
@@ -27,6 +27,7 @@ const Bookings = lazy(() => import("./pages/Bookings"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const TripHistory = lazy(() => import("./pages/TripHistory"));
 const HostDashboard = lazy(() => import("./pages/HostDashboard"));
+const BecomeAHost = lazy(() => import("./pages/BecomeAHost"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -71,108 +72,111 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <BrowserRouter>
-            <FloatingNavbar />
+            <Navbar />
             <CommandPalette />
-            <Suspense fallback={<FormSkeleton />}>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/password-reset" element={<PasswordReset />} />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/trips"
-                  element={
-                    <ProtectedRoute>
-                      <MyTrips />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/trips/create"
-                  element={
-                    <ProtectedRoute>
-                      <CreateTrip />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/trips/:id"
-                  element={
-                    <ProtectedRoute>
-                      <TripDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/properties/:id" element={<PropertyDetail />} />
-                <Route path="/converter" element={<CurrencyConverter />} />
-                <Route
-                  path="/wishlist"
-                  element={
-                    <ProtectedRoute>
-                      <Wishlist />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/bookings"
-                  element={
-                    <ProtectedRoute>
-                      <Bookings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/notifications"
-                  element={
-                    <ProtectedRoute>
-                      <Notifications />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/history"
-                  element={
-                    <ProtectedRoute>
-                      <TripHistory />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/host"
-                  element={
-                    <ProtectedRoute requiredRole="host">
-                      <HostDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/analytics"
-                  element={
-                    <ProtectedRoute requiredRole="host">
-                      <Analytics />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+            <main className="min-h-[calc(100vh-4rem)]">
+              <Suspense fallback={<FormSkeleton />}>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/password-reset" element={<PasswordReset />} />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/trips"
+                    element={
+                      <ProtectedRoute>
+                        <MyTrips />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/trips/create"
+                    element={
+                      <ProtectedRoute>
+                        <CreateTrip />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/trips/:id"
+                    element={
+                      <ProtectedRoute>
+                        <TripDetail />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/search" element={<SearchPage />} />
+                  <Route path="/properties/:id" element={<PropertyDetail />} />
+                  <Route path="/converter" element={<CurrencyConverter />} />
+                  <Route
+                    path="/wishlist"
+                    element={
+                      <ProtectedRoute>
+                        <Wishlist />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/bookings"
+                    element={
+                      <ProtectedRoute>
+                        <Bookings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/notifications"
+                    element={
+                      <ProtectedRoute>
+                        <Notifications />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/history"
+                    element={
+                      <ProtectedRoute>
+                        <TripHistory />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="/become-host" element={<BecomeAHost />} />
+                  <Route
+                    path="/host"
+                    element={
+                      <ProtectedRoute requiredRole="host">
+                        <HostDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <ProtectedRoute requiredRole="host">
+                        <Analytics />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </main>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

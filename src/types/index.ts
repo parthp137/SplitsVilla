@@ -84,6 +84,11 @@ export interface Trip {
   members: TripMember[];
   status: "planning" | "active" | "archived" | "completed";
   finalizedProperty?: Property;
+  savedProperties?: {
+    propertyId: string;
+    addedBy?: string;
+    addedAt: string;
+  }[];
   inviteCode: string;
   totalExpenses: number;
   createdAt: string;
@@ -99,12 +104,38 @@ export interface TripMember {
   totalContributed: number;
 }
 
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface TripInvite {
+  id: string;
+  tripId: string;
+  inviterId: string;
+  inviteeUserId?: string;
+  inviteeEmail: string;
+  status: "pending" | "accepted" | "declined" | "revoked" | "expired";
+  token?: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface Vote {
   id: string;
   tripId: string;
   propertyId: string;
   userId: string;
   vote: "up" | "down";
+}
+
+export interface VoteSummary {
+  propertyId: string;
+  up: number;
+  down: number;
+  userVote: "up" | "down" | null;
 }
 
 export interface Expense {

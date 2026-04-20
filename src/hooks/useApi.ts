@@ -19,6 +19,14 @@ export function useProperty(id: string | undefined) {
   });
 }
 
+export function usePropertiesByIds(ids: string[]) {
+  return useQuery({
+    queryKey: ["properties-by-ids", [...ids].sort().join(",")],
+    queryFn: () => api.getPropertiesByIds(ids),
+    enabled: ids.length > 0,
+  });
+}
+
 export function useWishlist() {
   return useQuery({
     queryKey: ["wishlist"],
@@ -110,6 +118,36 @@ export function useTrip(id: string | undefined) {
   });
 }
 
+export function useTripInvites(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ["trip-invites", tripId],
+    queryFn: () => (tripId ? api.getTripInvites(tripId) : []),
+    enabled: !!tripId,
+  });
+}
+
+export function useShortlistProperty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, propertyId }: { tripId: string; propertyId: string }) => api.shortlistProperty(tripId, propertyId),
+    onSuccess: (_, { tripId }) => {
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+  });
+}
+
+export function useInviteTripMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, email }: { tripId: string; email: string }) => api.inviteTripMember(tripId, email),
+    onSuccess: (_, { tripId }) => {
+      queryClient.invalidateQueries({ queryKey: ["trip-invites", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+  });
+}
+
 export function useJoinTripWithCode() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -177,6 +215,15 @@ export function useNotifications() {
   });
 }
 
+export function useUserSearch(query: string) {
+  return useQuery({
+    queryKey: ["user-search", query],
+    queryFn: () => api.searchUsers(query),
+    enabled: query.trim().length >= 2,
+    staleTime: 15000,
+  });
+}
+
 export function useMarkNotificationAsRead() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -216,10 +263,19 @@ export function useCastVote() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ tripId, propertyId, voteType }: any) => api.castVote(tripId, propertyId, voteType),
-    onSuccess: () => {
+    onSuccess: (_, { tripId }) => {
       queryClient.invalidateQueries({ queryKey: ["trips"] });
       queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["trip-votes", tripId] });
     },
+  });
+}
+
+export function useTripVoteSummary(tripId: string | undefined) {
+  return useQuery({
+    queryKey: ["trip-votes", tripId],
+    queryFn: () => (tripId ? api.getTripVoteSummary(tripId) : []),
+    enabled: !!tripId,
   });
 }
 
