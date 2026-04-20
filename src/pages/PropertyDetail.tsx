@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Star, Heart, Share2, MapPin, Users, Bed, Bath, Home, Wifi, Car, Waves, UtensilsCrossed, Wind, ChevronLeft, AlertCircle, CheckCircle, CalendarDays, Loader2 } from "lucide-react";
 
@@ -13,6 +13,7 @@ import { formatCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateBooking, useProperty, usePropertyReviews, useShortlistProperty, useTrips } from "@/hooks/useApi";
 import type { Property } from "@/types";
+import { readWishlistIds, toggleWishlistId } from "@/lib/wishlist";
 
 const HOST_LISTINGS_KEY = "sv_host_listings";
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200";
@@ -122,6 +123,10 @@ export default function PropertyDetail() {
   const [selectedTripId, setSelectedTripId] = useState("");
 
   const localBookingsKey = "sv_local_bookings";
+
+  useEffect(() => {
+    setWishlisted(readWishlistIds().includes(property.id));
+  }, [property.id]);
 
   const canUseApiBooking = useMemo(() => isMongoId && Boolean(apiProperty), [isMongoId, apiProperty]);
   const { data: trips = [] } = useTrips();
@@ -261,7 +266,13 @@ export default function PropertyDetail() {
             <button className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent">
               <Share2 className="h-4 w-4" /> Share
             </button>
-            <button onClick={() => setWishlisted(!wishlisted)} className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent">
+            <button
+              onClick={() => {
+                const result = toggleWishlistId(property.id);
+                setWishlisted(result.isWishlisted);
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-accent"
+            >
               <Heart className={`h-4 w-4 ${wishlisted ? "fill-primary text-primary" : ""}`} /> Save
             </button>
           </div>

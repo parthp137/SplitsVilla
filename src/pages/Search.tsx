@@ -17,6 +17,7 @@ import {
   BlurReveal,
   PageTransitionWrapper,
 } from "@/components/effects/AdvancedAnimations";
+import { readWishlistIds, toggleWishlistId } from "@/lib/wishlist";
 
 const HOST_LISTINGS_KEY = "sv_host_listings";
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200";
@@ -68,8 +69,22 @@ export default function SearchPage() {
     searchParams.get("amenities")?.split(",").filter(Boolean) || []
   );
   const [showFilters, setShowFilters] = useState(false);
+  const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const categoryParam = searchParams.get("category");
   const shouldFocusSearch = searchParams.get("focus") === "1";
+
+  useEffect(() => {
+    setWishlistIds(readWishlistIds());
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "sv_wishlist_ids") {
+        setWishlistIds(readWishlistIds());
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     if (categoryParam) {
@@ -216,6 +231,11 @@ export default function SearchPage() {
     priceMax < PRICE_MAX ||
     minRating > 0 ||
     maxRating < RATING_MAX;
+
+  const handleWishlistToggle = (propertyId: string) => {
+    const result = toggleWishlistId(propertyId);
+    setWishlistIds(result.wishlistIds);
+  };
 
   return (
     <PageTransitionWrapper>
@@ -500,7 +520,13 @@ export default function SearchPage() {
                         className={selectedPropertyId === p.id ? "ring-2 ring-primary" : ""}
                         whileHover={{ scale: 1.05, y: -5 }}
                       >
-                        <PropertyCard property={p} groupSize={4} showPerPerson />
+                        <PropertyCard
+                          property={p}
+                          groupSize={4}
+                          showPerPerson
+                          isWishlisted={wishlistIds.includes(p.id)}
+                          onWishlistToggle={handleWishlistToggle}
+                        />
                       </motion.div>
                     ))}
                   </motion.div>
