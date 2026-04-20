@@ -32,7 +32,7 @@ export default function AnimatedPropertyCard({
     >
       <motion.div
         className="relative overflow-hidden rounded-2xl"
-        whileHover={{ boxShadow: "0 20px 60px rgba(59, 130, 246, 0.22)" }}
+        whileHover={{ boxShadow: "0 20px 60px rgba(255, 56, 92, 0.2)" }}
       >
         <PropertyCard property={property} groupSize={groupSize} showPerPerson={showPerPerson} />
       </motion.div>

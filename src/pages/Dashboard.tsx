@@ -21,17 +21,11 @@ export default function Dashboard() {
   const { data: trips = [], isLoading, error } = useTrips();
 
   const activeTrips = trips.filter((t) => t.status === "active" || t.status === "planning");
-  const totalGroupMembers = activeTrips.reduce((acc, trip) => acc + trip.members.length, 0);
-  const totalGroupSpend = activeTrips.reduce((acc, trip) => acc + trip.totalExpenses, 0);
-  const overBudgetTrips = activeTrips.filter(
-    (trip) => trip.totalExpenses > trip.budgetPerPerson * Math.max(1, trip.members.length),
-  ).length;
-
   const stats = [
     { label: "Active Trips", value: activeTrips.length, icon: Plane },
-    { label: "Group Members", value: totalGroupMembers, icon: Users },
-    { label: "Trips Over Budget", value: overBudgetTrips, icon: AlertCircle },
-    { label: "Total Group Spend", value: formatCurrency(totalGroupSpend), icon: BarChart3 },
+    { label: "Upcoming Bookings", value: 2, icon: Calendar },
+    { label: "Saved Properties", value: user?.wishlist?.length || 0, icon: Heart },
+    { label: "Total Spent", value: formatCurrency(87200), icon: BarChart3 },
   ];
 
   if (isLoading) {
@@ -133,24 +127,18 @@ export default function Dashboard() {
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
               <div className="flex items-center justify-between">
-                <h2 className="font-heading text-xl font-bold">Split Insights</h2>
+                <h2 className="font-heading text-xl font-bold">Recent Activity</h2>
                 <Link to="/notifications" className="text-sm font-semibold text-primary">
                   View all
                 </Link>
               </div>
               <motion.div className="mt-4 space-y-3" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } }} initial="hidden" animate="visible">
-                <motion.div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-4" variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}>
-                  <p className="text-sm font-medium text-foreground">You are coordinating {activeTrips.length} active group trip(s).</p>
-                  <p className="text-xs text-muted-foreground">Keep spend transparent and settle early to avoid end-trip stress.</p>
-                </motion.div>
-                <motion.div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-4" variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}>
-                  <p className="text-sm font-medium text-foreground">{overBudgetTrips} trip(s) are currently over budget.</p>
-                  <p className="text-xs text-muted-foreground">Review high-spend categories and propose a shared adjustment plan.</p>
-                </motion.div>
-                <motion.div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-4" variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}>
-                  <p className="text-sm font-medium text-foreground">Average spend per active trip: {formatCurrency(activeTrips.length ? Math.round(totalGroupSpend / activeTrips.length) : 0)}</p>
-                  <p className="text-xs text-muted-foreground">Track this metric weekly to keep group decisions realistic.</p>
-                </motion.div>
+                {mockNotifications.slice(0, 4).map((notif) => (
+                  <motion.div key={notif.id} variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }} className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-4">
+                    <p className="text-sm font-medium text-foreground">{notif.message}</p>
+                    <p className="text-xs text-muted-foreground">{timeAgo(notif.createdAt)}</p>
+                  </motion.div>
+                ))}
               </motion.div>
             </motion.div>
           </div>

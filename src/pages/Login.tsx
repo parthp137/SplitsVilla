@@ -39,42 +39,28 @@ export default function Login() {
   return (
     <div className="flex min-h-screen">
       {/* Left panel */}
-      <div className="relative hidden lg:flex lg:w-[56%] lg:flex-col lg:justify-between lg:overflow-hidden lg:p-12 xl:w-[58%]">
-        <img
-          src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop"
-          alt="SplitsVilla travel"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/50" />
-
-        <Link to="/" className="relative z-10 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 shadow-sm backdrop-blur-sm">
-            <Home className="h-5 w-5 text-white" />
+      <div className="hidden w-1/2 bg-gradient-to-br from-primary via-primary-dark to-secondary p-12 lg:flex lg:flex-col lg:justify-between">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-card/20">
+            <Home className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span
-            className="text-3xl text-white"
-            style={{ fontFamily: '"Segoe Script", "Lucida Handwriting", cursive' }}
-          >
-            Splits<span className="text-primary">Villa</span>
-          </span>
+          <span className="font-heading text-xl font-extrabold text-primary-foreground">SplitsVilla</span>
         </Link>
-
-        <div className="relative z-10">
-          <h2 className="font-heading text-4xl font-extrabold leading-tight text-white">
+        <div>
+          <h2 className="font-heading text-4xl font-extrabold leading-tight text-primary-foreground">
             Travel together,<br />split smarter.
           </h2>
           <div className="mt-8 flex flex-wrap gap-3">
-            {["Group Stays", "Fair Splitting", "Vote Together"].map((t) => (
-              <span key={t} className="rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur-sm">{t}</span>
+            {["🏡 Group Stays", "💰 Fair Splitting", "🗳️ Vote Together"].map((t) => (
+              <span key={t} className="rounded-full bg-primary-foreground/15 px-4 py-2 text-sm font-medium text-primary-foreground backdrop-blur-sm">{t}</span>
             ))}
           </div>
         </div>
-
-        <p className="relative z-10 text-sm text-white/75">© 2026 SplitsVilla, Inc.</p>
+        <p className="text-sm text-primary-foreground/60">© 2025 SplitsVilla, Inc.</p>
       </div>
 
       {/* Right form */}
-      <div className="flex w-full items-center justify-center bg-card p-8 lg:w-[44%] xl:w-[42%]">
+      <div className="flex w-full items-center justify-center bg-card p-8 lg:w-1/2">
         <div className="w-full max-w-md">
           <Link to="/" className="mb-8 flex items-center gap-2 lg:hidden">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">

@@ -1,9 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, MapPin, Calendar, Users, AlertCircle } from "lucide-react";
+import { Plus, MapPin, Calendar, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useTrips } from "@/hooks/useApi";
-import { Skeleton } from "@/components/ui/skeleton";
+import { mockTrips } from "@/utils/mockData";
 import { formatDateRange } from "@/utils/formatDate";
 import { formatCurrency } from "@/utils/formatCurrency";
 
@@ -16,22 +15,6 @@ const statusColors: Record<string, string> = {
 
 export default function MyTrips() {
   const navigate = useNavigate();
-  const { data: trips = [], isLoading, error } = useTrips();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-          <Skeleton className="h-10 w-52" />
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((item) => (
-              <Skeleton key={item} className="h-72 w-full rounded-2xl" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,33 +27,7 @@ export default function MyTrips() {
         </div>
 
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {error && (
-            <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-destructive/20 bg-destructive/10 p-4">
-              <p className="flex items-center gap-2 font-medium text-destructive">
-                <AlertCircle className="h-4 w-4" /> Could not load trips
-              </p>
-              <p className="mt-1 text-sm text-destructive/80">Please refresh and try again.</p>
-            </div>
-          )}
-
-          {!error && trips.length === 0 && (
-            <div className="sm:col-span-2 lg:col-span-3 rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-8 text-center">
-              <p className="font-heading text-xl font-bold text-foreground">No trips yet</p>
-              <p className="mt-2 text-sm text-muted-foreground">Create your first group trip and start splitting expenses fairly.</p>
-              <Button onClick={() => navigate("/dashboard/trips/create")} className="mt-4 rounded-full">
-                <Plus className="mr-2 h-4 w-4" /> Plan New Trip
-              </Button>
-            </div>
-          )}
-
-          {trips.map((trip) => {
-            const membersCount = Math.max(1, trip.members.length);
-            const totalBudget = trip.budgetPerPerson * membersCount;
-            const spentRatio = totalBudget > 0 ? (trip.totalExpenses / totalBudget) * 100 : 0;
-            const perPersonSpent = trip.totalExpenses / membersCount;
-            const overBudget = trip.totalExpenses > totalBudget;
-
-            return (
+          {mockTrips.map((trip) => (
             <Link to={`/trips/${trip.id}`} key={trip.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-shadow hover:shadow-card-hover">
               <div className="relative h-40 bg-gradient-to-br from-primary/20 to-secondary/20">
                 {trip.finalizedProperty?.images[0] && (
@@ -78,9 +35,6 @@ export default function MyTrips() {
                 )}
                 <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${statusColors[trip.status]}`}>
                   {trip.status}
-                </span>
-                <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${overBudget ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-                  {overBudget ? "Over budget" : "On track"}
                 </span>
               </div>
               <div className="p-5">
@@ -98,15 +52,9 @@ export default function MyTrips() {
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className={`h-full rounded-full transition-all ${overBudget ? "bg-destructive" : "bg-primary"}`}
-                      style={{ width: `${Math.min(100, spentRatio)}%` }}
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min(100, (trip.totalExpenses / (trip.budgetPerPerson * trip.members.length)) * 100)}%` }}
                     />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Per-person spend: {formatCurrency(Math.round(perPersonSpent))}</span>
-                    <span className={overBudget ? "font-semibold text-destructive" : "font-semibold text-success"}>
-                      {overBudget ? `${formatCurrency(Math.round(trip.totalExpenses - totalBudget))} over` : `${formatCurrency(Math.round(totalBudget - trip.totalExpenses))} left`}
-                    </span>
                   </div>
                 </div>
                 {/* Member avatars */}
@@ -124,8 +72,7 @@ export default function MyTrips() {
                 </div>
               </div>
             </Link>
-            );
-          })}
+          ))}
         </div>
       </div>
     </div>

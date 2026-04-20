@@ -25,13 +25,6 @@ const tripSchema = new mongoose.Schema(
     members: [tripMemberSchema],
     status: { type: String, enum: ["planning", "active", "archived", "completed"], default: "planning" },
     finalizedProperty: { type: mongoose.Schema.Types.ObjectId, ref: "Property" },
-    savedProperties: [
-      {
-        propertyId: { type: String, required: true },
-        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        addedAt: { type: Date, default: Date.now },
-      },
-    ],
     inviteCode: { type: String, unique: true, sparse: true },
     totalExpenses: { type: Number, default: 0 },
   },

@@ -212,10 +212,10 @@ export function ClaymorphicButton({
   return (
     <motion.button
       onClick={onClick}
-      className="relative inline-flex flex-nowrap items-center rounded-3xl bg-gradient-to-br from-primary to-primary/80 px-8 py-3 text-white font-bold shadow-xl"
+      className="relative rounded-3xl bg-gradient-to-br from-primary to-primary/80 px-8 py-3 text-white font-bold shadow-xl"
       whileHover={{
         scale: 1.05,
-        boxShadow: "0 20px 40px rgba(59, 130, 246, 0.36), inset -2px -2px 5px rgba(255, 255, 255, 0.2)",
+        boxShadow: "0 20px 40px rgba(255, 56, 92, 0.4), inset -2px -2px 5px rgba(255, 255, 255, 0.2)",
       }}
       whileTap={{
         scale: 0.95,
@@ -223,7 +223,7 @@ export function ClaymorphicButton({
       }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
-      <span className="relative z-10 inline-flex items-center whitespace-nowrap">{children}</span>
+      <span className="relative z-10 block">{children}</span>
       <motion.div
         className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/30 to-transparent opacity-0"
         whileHover={{ opacity: 1 }}
