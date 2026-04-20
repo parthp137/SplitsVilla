@@ -15,7 +15,6 @@ interface PropertyCardProps {
 export default function PropertyCard({ property, groupSize, showPerPerson, onWishlistToggle, isWishlisted = false }: PropertyCardProps) {
   const navigate = useNavigate();
   const [currentImage, setCurrentImage] = useState(0);
-  const [wishlisted, setWishlisted] = useState(isWishlisted);
 
   const perPerson = groupSize && groupSize > 1 ? Math.round(property.pricePerNight / groupSize) : null;
 
@@ -31,10 +30,14 @@ export default function PropertyCard({ property, groupSize, showPerPerson, onWis
         />
         {/* Heart */}
         <button
-          onClick={(e) => { e.stopPropagation(); setWishlisted(!wishlisted); onWishlistToggle?.(property.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onWishlistToggle?.(property.id);
+          }}
           className="absolute right-3 top-3 z-10"
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
         >
-          <Heart className={`h-6 w-6 drop-shadow-md transition-colors ${wishlisted ? "fill-primary text-primary" : "fill-foreground/30 text-card"}`} />
+          <Heart className={`h-6 w-6 drop-shadow-md transition-colors ${isWishlisted ? "fill-primary text-primary" : "fill-foreground/30 text-card"}`} />
         </button>
         {/* Image nav */}
         {property.images.length > 1 && (

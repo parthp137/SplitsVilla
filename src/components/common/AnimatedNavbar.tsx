@@ -203,7 +203,7 @@ export default function AnimatedNavbar() {
         <div className="flex items-center gap-3">
           {isAuthenticated && (
             <motion.button
-              onClick={() => navigate("/host")}
+              onClick={() => navigate("/become-host")}
               className="hidden rounded-full px-5 py-2.5 text-sm font-semibold text-card transition-all hover:shadow-lg md:block"
               whileHover={{
                 scale: 1.05,

@@ -4,7 +4,7 @@ import { Home } from "lucide-react";
 const footerSections = [
   { title: "Support", links: [{ label: "Help Center", to: "#" }, { label: "Safety", to: "#" }, { label: "Cancellation Options", to: "#" }] },
   { title: "Community", links: [{ label: "SplitsVilla Blog", to: "#" }, { label: "Forum", to: "#" }, { label: "Invite Friends", to: "#" }] },
-  { title: "Hosting", links: [{ label: "List Your Property", to: "/host" }, { label: "Host Resources", to: "#" }, { label: "Responsible Hosting", to: "#" }] },
+  { title: "Hosting", links: [{ label: "List Your Property", to: "/become-host" }, { label: "Host Resources", to: "#" }, { label: "Responsible Hosting", to: "#" }] },
   { title: "SplitsVilla", links: [{ label: "About Us", to: "#" }, { label: "Careers", to: "#" }, { label: "Press", to: "#" }] },
 ];
 

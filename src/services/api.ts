@@ -1,4 +1,4 @@
-import { User, Property, Booking, Review, Trip, Expense, Notification } from "@/types";
+import { User, Property, Booking, Review, Trip, Expense, Notification, TripInvite, UserSearchResult, VoteSummary } from "@/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const REQUEST_TIMEOUT = 15000; // 15 seconds
@@ -184,6 +184,15 @@ class ApiClient {
     return this.request<Property>(`/properties/${id}`);
   }
 
+  async getPropertiesByIds(ids: string[]) {
+    const sanitizedIds = ids.map((id) => id.trim()).filter(Boolean);
+    if (!sanitizedIds.length) {
+      return [] as Property[];
+    }
+    const params = new URLSearchParams({ ids: sanitizedIds.join(",") });
+    return this.request<Property[]>(`/properties/batch?${params.toString()}`);
+  }
+
   async addToWishlist(propertyId: string) {
     return this.request<User>("/properties/wishlist/add", {
       method: "POST",
@@ -255,6 +264,31 @@ class ApiClient {
     return this.request<Trip>(`/trips/${id}`);
   }
 
+  async getTripInvites(tripId: string) {
+    return this.request<TripInvite[]>(`/trips/${tripId}/invites`);
+  }
+
+  async shortlistProperty(tripId: string, propertyId: string) {
+    return this.request<Trip>(`/trips/${tripId}/properties`, {
+      method: "POST",
+      body: JSON.stringify({ propertyId }),
+    });
+  }
+
+  async inviteTripMember(tripId: string, email: string) {
+    return this.request<TripInvite>(`/trips/${tripId}/invites`, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async respondToTripInvite(inviteId: string, action: "accept" | "decline") {
+    return this.request<{ invite: TripInvite; tripId: string }>(`/trips/invites/${inviteId}/respond`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    });
+  }
+
   async updateTrip(id: string, data: Partial<Trip>) {
     return this.request<Trip>(`/trips/${id}`, {
       method: "PUT",
@@ -277,6 +311,7 @@ class ApiClient {
     currency: string;
     paidBy: string;
     splitWith: string[];
+    receipt?: string;
   }) {
     return this.request<Expense>(`/trips/${tripId}/expenses`, {
       method: "POST",
@@ -319,9 +354,18 @@ class ApiClient {
     });
   }
 
+  async getTripVoteSummary(tripId: string) {
+    return this.request<VoteSummary[]>(`/trips/${tripId}/votes/summary`);
+  }
+
   // ===== Notifications =====
   async getNotifications() {
     return this.request<Notification[]>("/notifications");
+  }
+
+  async searchUsers(query: string) {
+    const encoded = encodeURIComponent(query);
+    return this.request<UserSearchResult[]>(`/users/search?q=${encoded}`);
   }
 
   async markNotificationAsRead(id: string) {
