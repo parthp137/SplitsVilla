@@ -205,14 +205,16 @@ export function GlassmorphicCard({
 export function ClaymorphicButton({
   children,
   onClick,
+  className = "",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
+  className?: string;
 }) {
   return (
     <motion.button
       onClick={onClick}
-      className="relative inline-flex flex-nowrap items-center rounded-3xl bg-gradient-to-br from-primary to-primary/80 px-8 py-3 text-white font-bold shadow-xl"
+      className={`relative inline-flex flex-nowrap items-center rounded-3xl bg-gradient-to-br from-primary to-primary/80 px-8 py-3 text-white font-bold shadow-xl ${className}`}
       whileHover={{
         scale: 1.05,
         boxShadow: "0 20px 40px rgba(59, 130, 246, 0.36), inset -2px -2px 5px rgba(255, 255, 255, 0.2)",

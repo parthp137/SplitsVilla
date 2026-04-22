@@ -264,6 +264,12 @@ class ApiClient {
     return this.request<Trip>(`/trips/${id}`);
   }
 
+  async deleteTrip(id: string) {
+    return this.request<{ message: string; tripId: string }>(`/trips/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   async getTripInvites(tripId: string) {
     return this.request<TripInvite[]>(`/trips/${tripId}/invites`);
   }

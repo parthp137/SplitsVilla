@@ -1176,16 +1176,17 @@ export default function TripDetail() {
 
           {activeTab === 4 && (
             <div>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-6 flex flex-col gap-4 overflow-hidden sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="font-heading text-xl font-bold text-foreground">Members</h2>
                   <p className="text-sm text-muted-foreground">{trip.members.length} of {trip.groupSize} joined</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <Dialog open={openInviteDialog} onOpenChange={setOpenInviteDialog}>
                     <DialogTrigger asChild>
-                      <Button size="sm">
-                        <UserPlus className="mr-1 h-3.5 w-3.5" /> Invite Collaborator
+                      <Button size="sm" className="min-w-0 flex-1 justify-center sm:flex-none sm:w-auto">
+                        <UserPlus className="mr-1 h-3.5 w-3.5" />
+                        <span className="truncate">Invite</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
@@ -1249,15 +1250,16 @@ export default function TripDetail() {
                     </DialogContent>
                   </Dialog>
 
-                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/join/${encodeURIComponent(trip.inviteCode)}`); toast({ title: "Invite link copied!" }); }}>
-                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy Invite Link
+                  <Button variant="outline" size="sm" className="min-w-0 flex-1 justify-center sm:flex-none sm:w-auto" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/join/${encodeURIComponent(trip.inviteCode)}`); toast({ title: "Invite link copied!" }); }}>
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    <span className="truncate">Copy Link</span>
                   </Button>
                 </div>
               </div>
 
               {invites.filter((invite) => invite.status === "pending").length > 0 && (
-                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <div className="mb-2 flex items-center justify-between">
+                <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:mb-4">
+                  <div className="mb-3 flex flex-col gap-3 sm:mb-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold text-foreground">Pending invites</p>
                     <Button
                       variant="ghost"
@@ -1275,7 +1277,7 @@ export default function TripDetail() {
                       .filter((invite) => invite.status === "pending")
                       .slice(0, 6)
                       .map((invite) => (
-                        <div key={invite.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
+                        <div key={invite.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-2">
                           <div className="min-w-0">
                             <span className="block truncate text-sm text-foreground">{invite.inviteeEmail}</span>
                             <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">pending</span>
@@ -1295,16 +1297,16 @@ export default function TripDetail() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-4 sm:space-y-3">
                 {displayMembers.map((m) => {
                   const displayName = m.name || m.email || "Member";
                   return (
-                  <div key={m.userId} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+                  <div key={m.userId} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary sm:h-12 sm:w-12">
                       {displayName[0]}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-foreground">{displayName}</p>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "organizer" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                           {m.role}
@@ -1312,9 +1314,9 @@ export default function TripDetail() {
                       </div>
                       <p className="text-sm text-muted-foreground">{m.email}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-foreground">{formatCurrency(m.totalContributed)}</p>
-                      <p className="text-xs text-muted-foreground">contributed</p>
+                    <div className="flex items-baseline justify-between gap-6 rounded-lg bg-muted/30 px-4 py-2 sm:flex-col sm:justify-normal sm:gap-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-right">
+                      <p className="text-xs font-medium text-muted-foreground sm:text-xs">Contributed</p>
+                      <p className="text-base font-semibold text-foreground sm:text-sm">{formatCurrency(m.totalContributed)}</p>
                     </div>
                   </div>
                 );})}

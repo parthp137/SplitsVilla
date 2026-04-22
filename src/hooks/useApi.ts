@@ -118,6 +118,17 @@ export function useTrip(id: string | undefined) {
   });
 }
 
+export function useDeleteTrip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tripId: string) => api.deleteTrip(tripId),
+    onSuccess: (_, tripId) => {
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+  });
+}
+
 export function useTripInvites(tripId: string | undefined) {
   return useQuery({
     queryKey: ["trip-invites", tripId],

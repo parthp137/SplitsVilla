@@ -1,6 +1,7 @@
 import express from "express";
 import Trip from "../models/Trip.js";
 import Expense from "../models/Expense.js";
+import Booking from "../models/Booking.js";
 import User from "../models/User.js";
 import TripInvite from "../models/TripInvite.js";
 import Notification from "../models/Notification.js";
@@ -190,6 +191,25 @@ router.get("/:id", authMiddleware, asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "You do not have access to this trip" });
   }
   res.json(trip);
+}));
+
+router.delete("/:id", authMiddleware, asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id).populate("createdBy", "_id name email avatar");
+  if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+  if (!isTripOrganizer(trip, req.userId)) {
+    return res.status(403).json({ message: "Only organizer can delete trip" });
+  }
+
+  await Promise.all([
+    TripInvite.deleteMany({ tripId: trip._id }),
+    Expense.deleteMany({ tripId: trip._id }),
+    Notification.deleteMany({ tripId: trip._id }),
+    Booking.updateMany({ tripId: trip._id }, { $unset: { tripId: 1 } }),
+  ]);
+
+  await Trip.deleteOne({ _id: trip._id });
+  res.json({ message: "Trip deleted", tripId: req.params.id });
 }));
 
 router.get(
