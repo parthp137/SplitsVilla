@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { formatDateRange, formatDate } from "@/utils/formatDate";
 import { mockProperties } from "@/utils/mockData";
@@ -51,6 +61,7 @@ export default function TripDetail() {
   const [openInviteDialog, setOpenInviteDialog] = useState(false);
   const [openReserveDialog, setOpenReserveDialog] = useState(false);
   const [openTieDialog, setOpenTieDialog] = useState(false);
+  const [inviteToDelete, setInviteToDelete] = useState<{ id: string; email: string } | null>(null);
   const [reserveError, setReserveError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
@@ -488,11 +499,14 @@ export default function TripDetail() {
     }
   };
 
-  const handleDeleteInvite = async (inviteId: string) => {
+  const handleDeleteInvite = async () => {
     if (!id) return;
+    if (!inviteToDelete) return;
+
     try {
-      await deleteTripInvite({ tripId: id, inviteId });
+      await deleteTripInvite({ tripId: id, inviteId: inviteToDelete.id });
       toast({ title: "Invite deleted" });
+      setInviteToDelete(null);
       await refetchInvites();
     } catch (error: any) {
       toast({
@@ -501,6 +515,10 @@ export default function TripDetail() {
         variant: "destructive",
       });
     }
+  };
+
+  const requestDeleteInvite = (invite: { id: string; inviteeEmail: string }) => {
+    setInviteToDelete({ id: invite.id, email: invite.inviteeEmail });
   };
 
   const handleRemoveShortlistedProperty = async (propertyId: string) => {
@@ -1286,7 +1304,7 @@ export default function TripDetail() {
                             variant="ghost"
                             size="sm"
                             className="shrink-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeleteInvite(invite.id)}
+                            onClick={() => requestDeleteInvite(invite)}
                             disabled={isDeletingInvite}
                           >
                             Delete
@@ -1321,6 +1339,27 @@ export default function TripDetail() {
                   </div>
                 );})}
               </div>
+
+              <AlertDialog open={!!inviteToDelete} onOpenChange={(open) => !open && setInviteToDelete(null)}>
+                <AlertDialogContent className="max-w-[92vw] rounded-lg sm:max-w-lg">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete invite?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {`Delete invite for ${inviteToDelete?.email || "this user"}? This person will no longer be able to join from this invitation link.`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-2 sm:gap-0">
+                    <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+                      onClick={handleDeleteInvite}
+                      disabled={isDeletingInvite}
+                    >
+                      {isDeletingInvite ? "Deleting..." : "Delete Invite"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
 

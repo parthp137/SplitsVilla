@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, MapPin, Calendar, Users, AlertCircle, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useDeleteTrip, useTrips } from "@/hooks/useApi";
@@ -8,6 +9,16 @@ import { formatDateRange } from "@/utils/formatDate";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusColors: Record<string, string> = {
   planning: "bg-info/10 text-info",
@@ -22,6 +33,7 @@ export default function MyTrips() {
   const navigate = useNavigate();
   const { data: trips = [], isLoading, error } = useTrips();
   const deleteTrip = useDeleteTrip();
+  const [tripToDelete, setTripToDelete] = useState<any | null>(null);
 
   const getTripOrganizerId = (trip: any) => {
     const createdBy = trip?.createdBy;
@@ -30,22 +42,26 @@ export default function MyTrips() {
     return createdBy.id || createdBy._id || "";
   };
 
-  const handleDeleteTrip = async (trip: any) => {
+  const handleDeleteTrip = async () => {
+    if (!tripToDelete) return;
+
+    try {
+      await deleteTrip.mutateAsync(tripToDelete.id);
+      toast({ title: "Trip deleted", description: `\"${tripToDelete.title}\" has been removed.` });
+      setTripToDelete(null);
+    } catch (error) {
+      toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const requestDeleteTrip = (trip: any) => {
     const organizerId = getTripOrganizerId(trip);
     if (organizerId && organizerId !== user?.id) {
       toast({ title: "Organizer only action", description: "Only the organizer can delete this trip.", variant: "destructive" });
       return;
     }
 
-    const confirmed = window.confirm(`Delete \"${trip.title}\"? This removes the trip, invites, expenses, and related notifications.`);
-    if (!confirmed) return;
-
-    try {
-      await deleteTrip.mutateAsync(trip.id);
-      toast({ title: "Trip deleted", description: `\"${trip.title}\" has been removed.` });
-    } catch (error) {
-      toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
-    }
+    setTripToDelete(trip);
   };
 
   if (isLoading) {
@@ -123,7 +139,7 @@ export default function MyTrips() {
                       onClick={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
-                        void handleDeleteTrip(trip);
+                        requestDeleteTrip(trip);
                       }}
                       aria-label={`Delete ${trip.title}`}
                     >
@@ -177,6 +193,27 @@ export default function MyTrips() {
           })}
         </div>
       </div>
+
+      <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
+        <AlertDialogContent className="max-w-[92vw] rounded-lg sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete trip?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`Delete \"${tripToDelete?.title || "this trip"}\"? This removes the trip, invites, expenses, and related notifications.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+              onClick={handleDeleteTrip}
+              disabled={deleteTrip.isPending}
+            >
+              {deleteTrip.isPending ? "Deleting..." : "Delete Trip"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

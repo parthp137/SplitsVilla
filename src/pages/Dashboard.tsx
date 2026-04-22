@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { MapPin, Calendar, Users, Plus, Heart, Plane, BarChart3, Bell, AlertCircle, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { mockNotifications } from "@/utils/mockData";
@@ -15,6 +16,16 @@ import {
   AnimatedCounter,
 } from "@/components/effects/AdvancedAnimations";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -22,6 +33,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { data: trips = [], isLoading, error } = useTrips();
   const deleteTrip = useDeleteTrip();
+  const [tripToDelete, setTripToDelete] = useState<any | null>(null);
 
   const activeTrips = trips.filter((t) => t.status === "active" || t.status === "planning");
   const totalGroupMembers = activeTrips.reduce((acc, trip) => acc + trip.members.length, 0);
@@ -44,22 +56,26 @@ export default function Dashboard() {
     return createdBy.id || createdBy._id || "";
   };
 
-  const handleDeleteTrip = async (trip: any) => {
+  const handleDeleteTrip = async () => {
+    if (!tripToDelete) return;
+
+    try {
+      await deleteTrip.mutateAsync(tripToDelete.id);
+      toast({ title: "Trip deleted", description: `\"${tripToDelete.title}\" has been removed.` });
+      setTripToDelete(null);
+    } catch (error) {
+      toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const requestDeleteTrip = (trip: any) => {
     const organizerId = getTripOrganizerId(trip);
     if (organizerId && organizerId !== user?.id) {
       toast({ title: "Organizer only action", description: "Only the organizer can delete this trip.", variant: "destructive" });
       return;
     }
 
-    const confirmed = window.confirm(`Delete \"${trip.title}\"? This removes the trip, invites, expenses, and related notifications.`);
-    if (!confirmed) return;
-
-    try {
-      await deleteTrip.mutateAsync(trip.id);
-      toast({ title: "Trip deleted", description: `\"${trip.title}\" has been removed.` });
-    } catch (error) {
-      toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
-    }
+    setTripToDelete(trip);
   };
 
   if (isLoading) {
@@ -161,7 +177,7 @@ export default function Dashboard() {
                               onClick={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();
-                                void handleDeleteTrip(trip);
+                                requestDeleteTrip(trip);
                               }}
                               aria-label={`Delete ${trip.title}`}
                             >
@@ -200,6 +216,27 @@ export default function Dashboard() {
             </motion.div>
           </div>
         </div>
+
+        <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
+          <AlertDialogContent className="max-w-[92vw] rounded-lg sm:max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete trip?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`Delete \"${tripToDelete?.title || "this trip"}\"? This removes the trip, invites, expenses, and related notifications.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+                onClick={handleDeleteTrip}
+                disabled={deleteTrip.isPending}
+              >
+                {deleteTrip.isPending ? "Deleting..." : "Delete Trip"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </PageTransitionWrapper>
   );

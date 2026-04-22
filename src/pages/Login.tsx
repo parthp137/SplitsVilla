@@ -27,7 +27,7 @@ export default function Login() {
       console.log("🔐 Logging in with:", data.email);
       await login(data.email, data.password);
       toast({ title: "Welcome back! 🎉" });
-      navigate(redirectTo || "/dashboard", { replace: true });
+      navigate(redirectTo || "/", { replace: true });
     } catch (error: any) {
       console.error("❌ Login error:", error);
       toast({ 

@@ -12,6 +12,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Footer from "@/components/common/Footer";
 import AnimatedPropertyCard from "@/components/property/AnimatedPropertyCard";
+import { useAuth } from "@/contexts/AuthContext";
 import { mockProperties, categoryIcons } from "@/utils/mockData";
 import {
   AmbientBackgroundMotion,
@@ -27,6 +28,7 @@ import {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [activeCategory, setActiveCategory] = useState("trending");
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -623,61 +625,65 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* CTA SECTION */}
-        <section className="relative overflow-hidden py-14 sm:py-20">
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-primary to-secondary opacity-20"
-            animate={{
-              backgroundPosition: ["0%", "100%", "0%"],
-            }}
-            transition={{ duration: 10, repeat: Infinity }}
-          />
-
-          <div className="relative mx-auto max-w-4xl px-4 lg:px-8">
-            <motion.div
-              className="rounded-4xl border border-white/20 bg-gradient-to-br from-white/5 to-primary/10 p-6 text-center backdrop-blur-3xl sm:p-12"
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: false, margin: "-100px" }}
-            >
+        {!isAuthenticated && (
+          <>
+            {/* CTA SECTION */}
+            <section className="relative overflow-hidden py-14 sm:py-20">
               <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              >
-                <Sparkles className="mx-auto h-12 w-12 text-primary" />
-              </motion.div>
+                className="absolute inset-0 bg-gradient-to-r from-primary to-secondary opacity-20"
+                animate={{
+                  backgroundPosition: ["0%", "100%", "0%"],
+                }}
+                transition={{ duration: 10, repeat: Infinity }}
+              />
 
-              <h2 className="mt-4 font-heading text-3xl font-black text-foreground sm:text-4xl">
-                Ready to Split Smart?
-              </h2>
-              <p className="mt-4 text-base text-muted-foreground sm:text-lg">
-                Join thousands of travelers who split costs fairly and travel
-                smarter.
-              </p>
-
-              <motion.div
-                className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-              >
-                <ClaymorphicButton className="w-full justify-center sm:w-auto" onClick={() => navigate("/register")}>
-                  Get Started Free
-                </ClaymorphicButton>
-
-                <motion.button
-                  onClick={() => navigate("/search")}
-                  className="w-full rounded-full border-2 border-white/30 px-8 py-3 font-bold text-card backdrop-blur-md hover:bg-white/10 sm:w-auto"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+              <div className="relative mx-auto max-w-4xl px-4 lg:px-8">
+                <motion.div
+                  className="rounded-4xl border border-white/20 bg-gradient-to-br from-white/5 to-primary/10 p-6 text-center backdrop-blur-3xl sm:p-12"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8 }}
+                  viewport={{ once: false, margin: "-100px" }}
                 >
-                  Explore Properties
-                </motion.button>
-              </motion.div>
-            </motion.div>
-          </div>
-        </section>
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  >
+                    <Sparkles className="mx-auto h-12 w-12 text-primary" />
+                  </motion.div>
+
+                  <h2 className="mt-4 font-heading text-3xl font-black text-foreground sm:text-4xl">
+                    Ready to Split Smart?
+                  </h2>
+                  <p className="mt-4 text-base text-muted-foreground sm:text-lg">
+                    Join thousands of travelers who split costs fairly and travel
+                    smarter.
+                  </p>
+
+                  <motion.div
+                    className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.6 }}
+                  >
+                    <ClaymorphicButton className="w-full justify-center sm:w-auto" onClick={() => navigate("/register")}>
+                      Get Started Free
+                    </ClaymorphicButton>
+
+                    <motion.button
+                      onClick={() => navigate("/search")}
+                      className="w-full rounded-full border-2 border-white/30 px-8 py-3 font-bold text-card backdrop-blur-md hover:bg-white/10 sm:w-auto"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Explore Properties
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
+              </div>
+            </section>
+          </>
+        )}
 
         <Footer />
         </div>
