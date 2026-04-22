@@ -2,10 +2,6 @@
 
 SplitsVilla is a full-stack web application that simplifies group travel by combining property booking, trip planning, and expense management into one seamless platform. It brings together the core ideas of Airbnb and Splitwise, enabling groups to collaboratively choose stays, track shared expenses, and settle payments efficiently.
 
-## Live Demo
-
-(Add your deployed link here)
-
 ## Features
 
 ### Group Trip Planning
