@@ -1,162 +1,92 @@
-# SplitsVilla – Group Travel & Expense Management Platform
+# SplitsVilla
 
-SplitsVilla is a full-stack web application that simplifies group travel by combining property booking, trip planning, and expense management into one seamless platform. It brings together the core ideas of Airbnb and Splitwise, enabling groups to collaboratively choose stays, track shared expenses, and settle payments efficiently.
+SplitsVilla is a full-stack group travel and expense management app.
 
-## Features
+## Folder Structure
 
-### Group Trip Planning
+```
+SplitsVilla/
+	frontend/   # React + Vite app
+	backend/    # Express + MongoDB API
+	package.json
+	render.yaml
+```
 
-* Create and manage trips with friends
-* Invite members using unique invite codes
-* Track trip status (planning → booked → completed)
-* View trip history for past travels
+## Local Development
 
-### Property Discovery & Booking
+1. Install all dependencies from root:
 
-* Advanced search (city, price, amenities, property type)
-* Detailed property pages with images, ratings, and amenities
-* Wishlist system for saving properties
-* Map-based location view (Leaflet integration)
+```bash
+npm run install:all
+```
 
-### Collaborative Voting System
+2. Create environment file:
 
-* Vote on properties within a trip
-* Real-time vote updates using WebSockets
-* Smart ranking algorithm based on affordability, ratings, amenities, votes, and capacity
+```bash
+cp backend/.env.example backend/.env
+```
 
-### Expense Management
+3. Run backend:
 
-* Add and split expenses among group members
-* Multi-currency support (INR, USD, EUR, etc.)
-* Automatic debt settlement (minimizes transactions)
-* Category-based expense tracking
-* Export expense reports
+```bash
+npm run dev:backend
+```
 
-### AI Features
+4. Run frontend (separate terminal):
 
-* Budget estimation based on trip details
-* Smart travel suggestions using Claude API
-* Personalized recommendations based on group size
+```bash
+npm run dev:frontend
+```
 
-### Real-Time Collaboration
+Frontend runs on `http://localhost:8080` and proxies `/api` to backend `http://localhost:5000`.
 
-* Live updates for votes, expenses, and members
-* Socket.io integration for instant sync
-* Notifications for trip activity
+## Root Commands
 
-### User Experience
+```bash
+npm run install:all      # install frontend + backend dependencies
+npm run build            # build frontend only
+npm run render-build     # Render build command (installs + builds)
+npm run start            # start backend (serves frontend/dist in production)
+```
 
-* Fully responsive (mobile-first design)
-* Dark mode support
-* Smooth animations and transitions
-* Lazy loading and code splitting for performance
-* Error handling and loading states
+## Render Deployment (Single Service)
 
-## Tech Stack
+This repo is configured for one Render web service where:
 
-### Frontend
+1. `npm run render-build` builds the frontend into `frontend/dist`
+2. `npm run start` starts Express backend
+3. In production, backend serves static files from `frontend/dist`
+4. API remains available at `/api/*`
 
-* React 18 + TypeScript
-* Vite
-* Tailwind CSS
-* React Router
-* Framer Motion
-* Socket.io Client
-* Leaflet
+You can use `render.yaml` in this repo or set these manually:
 
-### Backend
+- Build Command: `npm run render-build`
+- Start Command: `npm run start`
 
-* Node.js + Express
-* MongoDB + Mongoose
-* JWT Authentication
-* Bcrypt
-* Socket.io
-* Nodemailer
-* Anthropic Claude API
+Set these environment variables in Render:
 
-### Tools
+- `NODE_ENV=production`
+- `MONGO_URI` (MongoDB Atlas connection string)
+- `JWT_SECRET`
+- `CLIENT_URLS` (include your Render URL)
+- `EMAIL_USER` (optional)
+- `EMAIL_PASSWORD` (optional)
+- `ANTHROPIC_API_KEY` (optional)
 
-* Git & GitHub
-* ESLint + Prettier
-* Vitest & Playwright
+## MongoDB Atlas
 
-## Key Highlights
+Set your Atlas URI in `MONGO_URI`, for example:
 
-* Real-time group collaboration using WebSockets
-* Intelligent expense settlement algorithm
-* AI-powered travel assistance
-* Scalable full-stack architecture
-* Clean and modular code structure
+```text
+mongodb+srv://<username>:<password>@<cluster>.mongodb.net/splitsvilla?retryWrites=true&w=majority
+```
 
-## Project Structure
+## Important Note About Uvicorn
 
-splitsvilla/
-├── server/          # Backend (Express + MongoDB)
-├── src/             # Frontend (React + TypeScript)
-├── public/          # Static assets
-├── docs/            # Documentation
-├── tests/           # Unit & E2E tests
-├── .env.example
-└── README.md
+`uvicorn` runs Python ASGI apps (FastAPI/Starlette). This project backend is Node.js (Express), so it cannot be run with `uvicorn` unless the backend is rewritten in Python.
 
-## How to Run
+For this Node setup, the one-command production entrypoint is:
 
-### 1. Clone Repository
-
-git clone https://github.com/yourusername/splitsvilla.git
-cd splitsvilla
-
-### 2. Install Dependencies
-
-npm install
-cd server && npm install && cd ..
-
-### 3. Setup Environment Variables
-
-Create .env and server/.env files:
-MONGO_URI=mongodb://localhost:27017/splitsvilla
-JWT_SECRET=your_secret_key
-PORT=5000
-
-### 4. Run Project
-
-npm run dev
-
-Frontend: http://localhost:5173
-Backend: http://localhost:5000
-
-## Limitations
-
-* No payment gateway integration yet
-* Email system requires configuration
-* AI features depend on external API keys
-
-## Future Enhancements
-
-* Payment integration (Stripe/Razorpay)
-* Mobile app (React Native)
-* Advanced analytics dashboard
-* Real-time chat within trips
-* Recommendation engine improvements
-
-## Performance
-
-* Optimized bundle with code splitting
-* Lazy loading for images and pages
-* Efficient API handling with caching
-
-## Contributing
-
-Feel free to fork and improve the project. Contributions are welcome!
-
-## License
-
-MIT License
-
-## Contact
-
-* GitHub: https://github.com/yourusername
-* Project: SplitsVilla
-
-Version: 1.0.0
-Last Updated: April 2026
+```bash
+npm run start
+```

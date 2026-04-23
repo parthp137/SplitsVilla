@@ -1,6 +1,6 @@
 import { User, Property, Booking, Review, Trip, Expense, Notification, TripInvite, UserSearchResult, VoteSummary } from "@/types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 const REQUEST_TIMEOUT = 15000; // 15 seconds
 
 interface ApiResponse<T> {

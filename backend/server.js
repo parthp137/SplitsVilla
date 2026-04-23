@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/auth.js";
 import propertiesRoutes from "./routes/properties.js";
@@ -17,8 +19,13 @@ import { errorHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDistPath = path.resolve(__dirname, "../frontend/dist");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === "production";
 
 // Middleware
 const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "")
@@ -26,14 +33,22 @@ const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || 
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const defaultLocalOrigins = ["http://localhost:8080", "http://localhost:8082"];
+const defaultLocalOrigins = ["http://localhost:8080", "http://localhost:8082", "http://localhost:5173"];
 const allowedOrigins = [...new Set([...configuredOrigins, ...defaultLocalOrigins])];
-console.log(`CORS Origins configured as: ${allowedOrigins.join(", ")}`);
+console.log(
+  `CORS Origins configured as: ${allowedOrigins.length ? allowedOrigins.join(", ") : "* (all)"}`,
+);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser requests (no Origin header) and configured browser origins.
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow non-browser requests (no Origin header).
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    // If no origins are configured, allow all browser origins.
+    if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
@@ -69,11 +84,26 @@ app.use("/api/users", usersRoutes);
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
+if (isProduction) {
+  app.use(express.static(frontendDistPath));
+
+  app.get(/^\/(?!api).*/, (req, res) => {
+    res.sendFile(path.join(frontendDistPath, "index.html"));
+  });
+}
+
 // Error handling
 app.use(errorHandler);
 
 // 404
-app.use((req, res) => res.status(404).json({ message: "Route not found" }));
+app.use((req, res) => {
+  if (req.path.startsWith("/api")) {
+    res.status(404).json({ message: "Route not found" });
+    return;
+  }
+
+  res.status(404).send("Not found");
+});
 
 // Start server
 app.listen(PORT, () => {
