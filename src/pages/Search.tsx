@@ -191,10 +191,28 @@ export default function SearchPage() {
   }, []);
 
   const properties = useMemo(() => {
-    const baseProperties = apiProperties.length > 0 ? apiProperties : mockProperties;
-    const baseIds = new Set(baseProperties.map((property) => property.id));
-    const uniqueHosted = hostedProperties.filter((property) => !baseIds.has(property.id));
-    return [...uniqueHosted, ...baseProperties];
+    const map = new Map<string, Property>();
+
+    // Keep API-backed records as primary to preserve real-property behavior.
+    apiProperties.forEach((property) => {
+      map.set(property.id, property);
+    });
+
+    // Fill remaining gaps with mock properties for richer browsing.
+    mockProperties.forEach((property) => {
+      if (!map.has(property.id)) {
+        map.set(property.id, property);
+      }
+    });
+
+    // Finally include hosted overlays only when they are not already present.
+    hostedProperties.forEach((property) => {
+      if (!map.has(property.id)) {
+        map.set(property.id, property);
+      }
+    });
+
+    return Array.from(map.values());
   }, [apiProperties, hostedProperties]);
 
   const filtered = properties

@@ -1,20 +1,33 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { MapPin, Calendar, Users, Copy, ThumbsUp, ThumbsDown, Plus, Sparkles, X, UserPlus } from "lucide-react";
+import { MapPin, Calendar, Users, Copy, ThumbsUp, ThumbsDown, Plus, Sparkles, X, UserPlus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { formatDateRange, formatDate } from "@/utils/formatDate";
 import { mockProperties } from "@/utils/mockData";
 import PropertyCard from "@/components/property/PropertyCard";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   useAIBudgetEstimate,
   useCastVote,
+  useCreateBooking,
+  useBookings,
   usePropertiesByIds,
   useSettleExpenses,
   useTrip,
@@ -24,20 +37,40 @@ import {
   useUserSearch,
   useTripExpenses,
   useAddExpense,
+  useDeleteTripInvite,
+  useRemoveShortlistedProperty,
 } from "@/hooks/useApi";
 
 const tabs = ["Properties", "Expenses", "Itinerary", "AI Budget", "Members", "Bookings"];
+const MONGO_ID_REGEX = /^[a-f\d]{24}$/i;
+
+function extractId(value: any) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return String(value.id || value._id || "");
+}
 
 export default function TripDetail() {
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [aiTier, setAiTier] = useState<"budget" | "standard" | "luxury">("standard");
   const [settlements, setSettlements] = useState<Array<{ from: string; to: string; amount: number }>>([]);
   const [openExpenseDialog, setOpenExpenseDialog] = useState(false);
   const [openInviteDialog, setOpenInviteDialog] = useState(false);
+  const [openReserveDialog, setOpenReserveDialog] = useState(false);
+  const [openTieDialog, setOpenTieDialog] = useState(false);
+  const [inviteToDelete, setInviteToDelete] = useState<{ id: string; email: string } | null>(null);
+  const [reserveError, setReserveError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
+  const [reserveForm, setReserveForm] = useState({
+    propertyId: "",
+    checkIn: "",
+    checkOut: "",
+    guests: 1,
+  });
   const [expenseForm, setExpenseForm] = useState({
     description: "",
     amount: "",
@@ -50,18 +83,38 @@ export default function TripDetail() {
   const { data: trip, isLoading: isTripLoading, refetch: refetchTrip } = useTrip(id);
   const { data: invites = [], refetch: refetchInvites } = useTripInvites(id);
   const { mutateAsync: inviteTripMember, isPending: isInviting } = useInviteTripMember();
+  const { mutateAsync: deleteTripInvite, isPending: isDeletingInvite } = useDeleteTripInvite();
   const { data: searchResults = [], isLoading: isSearchingUsers } = useUserSearch(memberSearch);
   const { data: expenses = [], isLoading: isExpensesLoading, refetch: refetchExpenses } = useTripExpenses(id);
   const { mutateAsync: addExpense, isPending: isAddingExpense } = useAddExpense();
   const { mutateAsync: settleTripExpenses, isPending: isSettling } = useSettleExpenses();
   const { mutateAsync: estimateBudget, data: aiEstimate, isPending: isEstimating } = useAIBudgetEstimate();
+  const { data: bookings = [], isLoading: isBookingsLoading, refetch: refetchBookings } = useBookings();
+  const { mutateAsync: createBooking, isPending: isCreatingBooking } = useCreateBooking();
   const savedPropertyIds = useMemo(() => {
     if (!trip?.savedProperties?.length) return [] as string[];
     return Array.from(new Set(trip.savedProperties.map((item) => item.propertyId).filter(Boolean)));
   }, [trip?.savedProperties]);
-  const { data: savedProperties = [], isLoading: isSavedPropertiesLoading } = usePropertiesByIds(savedPropertyIds);
+
+  const tripBookings = useMemo(
+    () => bookings.filter((booking) => extractId(booking.tripId) === String(id)),
+    [bookings, id],
+  );
+
+  const tripBookingPropertyIds = useMemo(
+    () => Array.from(new Set(tripBookings.map((booking) => extractId(booking.propertyId)).filter(Boolean))),
+    [tripBookings],
+  );
+
+  const hydratedPropertyIds = useMemo(
+    () => Array.from(new Set([...savedPropertyIds, ...tripBookingPropertyIds])),
+    [savedPropertyIds, tripBookingPropertyIds],
+  );
+
+  const { data: savedProperties = [], isLoading: isSavedPropertiesLoading } = usePropertiesByIds(hydratedPropertyIds);
   const { data: voteSummary = [] } = useTripVoteSummary(id);
   const { mutateAsync: castVote } = useCastVote();
+  const { mutateAsync: removeShortlistedProperty, isPending: isRemovingShortlisted } = useRemoveShortlistedProperty();
 
   const savedPropertyMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -81,6 +134,142 @@ export default function TripDetail() {
     });
     return map;
   }, [voteSummary]);
+
+  const currentUserId = useMemo(() => extractId(user), [user]);
+
+  const organizerId = useMemo(
+    () => extractId(trip?.members.find((member) => member.role === "organizer")?.userId),
+    [trip?.members],
+  );
+  const createdById = useMemo(() => extractId(trip?.createdBy), [trip?.createdBy]);
+  const createdByMember = useMemo(() => {
+    if (!trip?.createdBy) return null;
+    if (typeof trip.createdBy === "string") return null;
+    const creator = trip.createdBy as any;
+    if (!creator?.name) return null;
+    return {
+      userId: extractId(creator),
+      name: creator.name,
+      email: creator.email || "",
+      avatar: creator.avatar,
+      role: "organizer" as const,
+      joinedAt: trip.createdAt,
+      totalContributed: 0,
+    };
+  }, [trip?.createdBy, trip?.createdAt]);
+  const isOrganizer = Boolean(
+    currentUserId && (currentUserId === organizerId || currentUserId === createdById),
+  );
+
+  const displayMembers = useMemo(() => {
+    const mergedMembers = [...(trip?.members || [])];
+    if (createdByMember) {
+      mergedMembers.unshift(createdByMember);
+    }
+
+    const seen = new Set<string>();
+    return mergedMembers.filter((member) => {
+      const memberId = extractId(member.userId);
+      if (!memberId || seen.has(memberId)) {
+        return false;
+      }
+      seen.add(memberId);
+      return true;
+    });
+  }, [trip?.members, createdByMember]);
+
+  const memberNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    displayMembers.forEach((member) => {
+      const memberId = extractId(member.userId);
+      if (!memberId) return;
+      map.set(memberId, member.name || member.email || "Member");
+    });
+    return map;
+  }, [displayMembers]);
+
+  const reservedPropertyIds = useMemo(() => {
+    const ids = new Set<string>();
+    tripBookings.forEach((booking) => {
+      if (booking.status !== "cancelled") {
+        const propertyId = extractId(booking.propertyId);
+        if (propertyId) ids.add(propertyId);
+      }
+    });
+    return ids;
+  }, [tripBookings]);
+
+  const shortlistedRows = useMemo(() => {
+    return savedPropertyIds
+      .map((propertyId) => {
+        const property = savedPropertyMap.get(propertyId);
+        const vote = voteSummaryMap.get(propertyId) || { up: 0, down: 0, userVote: null as "up" | "down" | null };
+        return {
+          propertyId,
+          property,
+          vote,
+          isReservable: Boolean(property?.isActive && MONGO_ID_REGEX.test(propertyId)),
+          isReserved: reservedPropertyIds.has(propertyId),
+        };
+      })
+      .filter((row) => Boolean(row.property));
+  }, [savedPropertyIds, savedPropertyMap, voteSummaryMap, reservedPropertyIds]);
+
+  const topVoteCandidates = useMemo(() => {
+    const reservable = shortlistedRows.filter((row) => row.isReservable && !row.isReserved);
+    if (!reservable.length) return [];
+    const maxUpvotes = Math.max(...reservable.map((row) => row.vote.up));
+    return reservable.filter((row) => row.vote.up === maxUpvotes);
+  }, [shortlistedRows]);
+
+  const recommendedTopVoted = useMemo(() => {
+    if (!topVoteCandidates.length) return null;
+    return [...topVoteCandidates].sort((a, b) => {
+      const downDelta = a.vote.down - b.vote.down;
+      if (downDelta !== 0) return downDelta;
+      return (b.property?.rating || 0) - (a.property?.rating || 0);
+    })[0];
+  }, [topVoteCandidates]);
+
+  const hasTopVoteTie = topVoteCandidates.length > 1;
+
+  const bookingRows = useMemo(() => {
+    return tripBookings.map((booking) => {
+      const propertyId = extractId(booking.propertyId);
+      const property = savedPropertyMap.get(propertyId);
+      return { booking, propertyId, property };
+    });
+  }, [tripBookings, savedPropertyMap]);
+
+  const selectedReserveProperty = useMemo(
+    () => savedPropertyMap.get(reserveForm.propertyId),
+    [reserveForm.propertyId, savedPropertyMap],
+  );
+
+  const reservePricing = useMemo(() => {
+    if (!selectedReserveProperty || !reserveForm.checkIn || !reserveForm.checkOut) {
+      return null;
+    }
+
+    const checkInDate = new Date(reserveForm.checkIn);
+    const checkOutDate = new Date(reserveForm.checkOut);
+    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86400000);
+    if (nights <= 0) {
+      return null;
+    }
+
+    const baseTotal = selectedReserveProperty.pricePerNight * nights;
+    const cleaningFee = 1500;
+    const serviceFee = Math.round(baseTotal * 0.05);
+
+    return {
+      nights,
+      baseTotal,
+      cleaningFee,
+      serviceFee,
+      grandTotal: baseTotal + cleaningFee + serviceFee,
+    };
+  }, [reserveForm.checkIn, reserveForm.checkOut, selectedReserveProperty]);
   
   // Log trip loading state
   useEffect(() => {
@@ -171,9 +360,15 @@ export default function TripDetail() {
     if (!id) return;
     try {
       const result = await settleTripExpenses(id);
+      const resolveName = (value: any) => {
+        const raw = (value || "").toString().trim();
+        if (!raw) return "Member";
+        return memberNameById.get(raw) || raw;
+      };
+
       const normalized = (result.settlements || []).map((item: any) => ({
-        from: item.fromName || item.from || item.payerName || "Member",
-        to: item.toName || item.to || item.receiverName || "Member",
+        from: item.fromName || item.payerName || resolveName(item.from),
+        to: item.toName || item.receiverName || resolveName(item.to),
         amount: Number(item.amount || 0),
       }));
       setSettlements(normalized);
@@ -190,6 +385,95 @@ export default function TripDetail() {
       toast({ title: voteType === "up" ? "Upvote added" : "Downvote added" });
     } catch {
       toast({ title: "Vote failed", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const openReserveForProperty = (propertyId: string) => {
+    if (!isOrganizer) {
+      toast({ title: "Organizer only action", description: "Only the trip organizer can convert shortlist to booking.", variant: "destructive" });
+      return;
+    }
+
+    const selectedProperty = savedPropertyMap.get(propertyId);
+
+    if (!MONGO_ID_REGEX.test(propertyId) || !selectedProperty?.isActive) {
+      toast({
+        title: "Booking unavailable for this stay",
+        description: "This stay is either not backed by a live property record or has been archived.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setReserveForm({
+      propertyId,
+      checkIn: trip?.checkIn || "",
+      checkOut: trip?.checkOut || "",
+      guests: Math.max(1, Math.min(trip?.groupSize || 1, selectedProperty?.maxGuests || trip?.groupSize || 1)),
+    });
+    setReserveError(null);
+    setOpenReserveDialog(true);
+  };
+
+  const handleReserveTopVoted = () => {
+    if (!recommendedTopVoted) {
+      toast({ title: "No reservable top-voted stays", description: "Save and vote on API-backed properties to reserve from shortlist." });
+      return;
+    }
+
+    if (hasTopVoteTie) {
+      setOpenTieDialog(true);
+      return;
+    }
+
+    openReserveForProperty(recommendedTopVoted.property.id);
+  };
+
+  const handleConfirmReservation = async () => {
+    if (!id) return;
+
+    const selectedProperty = savedPropertyMap.get(reserveForm.propertyId);
+    const guests = Number(reserveForm.guests || 0);
+    const checkInDate = new Date(reserveForm.checkIn);
+    const checkOutDate = new Date(reserveForm.checkOut);
+
+    setReserveError(null);
+
+    if (!reserveForm.propertyId || !reserveForm.checkIn || !reserveForm.checkOut) {
+      setReserveError("Select a property, check-in, and check-out dates.");
+      return;
+    }
+
+    if (!(checkOutDate > checkInDate)) {
+      setReserveError("Check-out must be after check-in.");
+      return;
+    }
+
+    if (!selectedProperty) {
+      setReserveError("Selected property details are unavailable.");
+      return;
+    }
+
+    if (guests < 1 || guests > selectedProperty.maxGuests) {
+      setReserveError(`Guest count must be between 1 and ${selectedProperty.maxGuests}.`);
+      return;
+    }
+
+    try {
+      await createBooking({
+        propertyId: reserveForm.propertyId,
+        checkIn: reserveForm.checkIn,
+        checkOut: reserveForm.checkOut,
+        guests,
+        tripId: id,
+      });
+
+      toast({ title: "Booking created", description: `${selectedProperty.title} is now reserved for this trip.` });
+      setOpenReserveDialog(false);
+      setActiveTab(5);
+      await Promise.all([refetchBookings(), refetchTrip()]);
+    } catch (error: any) {
+      setReserveError(error?.message || "Could not create booking. Please try again.");
     }
   };
 
@@ -210,6 +494,43 @@ export default function TripDetail() {
       toast({
         title: "Invite failed",
         description: error?.message || "Could not send invite right now.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteInvite = async () => {
+    if (!id) return;
+    if (!inviteToDelete) return;
+
+    try {
+      await deleteTripInvite({ tripId: id, inviteId: inviteToDelete.id });
+      toast({ title: "Invite deleted" });
+      setInviteToDelete(null);
+      await refetchInvites();
+    } catch (error: any) {
+      toast({
+        title: "Could not delete invite",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const requestDeleteInvite = (invite: { id: string; inviteeEmail: string }) => {
+    setInviteToDelete({ id: invite.id, email: invite.inviteeEmail });
+  };
+
+  const handleRemoveShortlistedProperty = async (propertyId: string) => {
+    if (!id) return;
+    try {
+      await removeShortlistedProperty({ tripId: id, propertyId });
+      toast({ title: "Removed from shortlist" });
+      await refetchTrip();
+    } catch (error: any) {
+      toast({
+        title: "Could not remove shortlisted stay",
+        description: error?.message || "Please try again.",
         variant: "destructive",
       });
     }
@@ -275,7 +596,7 @@ export default function TripDetail() {
               <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{trip.destination}, {trip.country}</span>
                 <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{formatDateRange(trip.checkIn, trip.checkOut)} · {trip.nights} nights</span>
-                <span className="flex items-center gap-1"><Users className="h-4 w-4" />{trip.members.length}/{trip.groupSize} members</span>
+                <span className="flex items-center gap-1"><Users className="h-4 w-4" />{displayMembers.length}/{trip.groupSize} members</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -321,25 +642,170 @@ export default function TripDetail() {
             <div>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-heading text-xl font-bold text-foreground">Shortlisted Properties</h2>
-                <Link to="/search" className="text-sm font-semibold text-primary hover:underline">Search More</Link>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleReserveTopVoted}
+                    disabled={!isOrganizer || !recommendedTopVoted}
+                  >
+                    Reserve Top-Voted
+                  </Button>
+                  <Link to="/search" className="text-sm font-semibold text-primary hover:underline">Search More</Link>
+                </div>
               </div>
+              {!isOrganizer ? (
+                <p className="mb-3 text-xs font-medium text-muted-foreground">Only organizer can reserve.</p>
+              ) : null}
               {trip.savedProperties?.length ? (
                 <div className="mb-4 rounded-xl border border-border bg-muted/30 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-foreground">{trip.savedProperties.length} property shortlist{trip.savedProperties.length > 1 ? "s" : ""}</p>
                       <p className="text-sm text-muted-foreground">Saved directly from property detail while planning the trip.</p>
+                      {recommendedTopVoted ? (
+                        <p className="mt-1 text-xs text-primary">
+                          Top-voted: {recommendedTopVoted.property.title}
+                          {hasTopVoteTie ? " (tie - choose before reserving)" : ""}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">No reservable shortlisted stays yet.</p>
+                      )}
                     </div>
                     <Badge variant="secondary">Saved stays</Badge>
                   </div>
                 </div>
               ) : null}
+
+              <Dialog open={openTieDialog} onOpenChange={setOpenTieDialog}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Choose a top-voted stay</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">Multiple properties are tied for highest upvotes. Pick one to continue booking.</p>
+                    {topVoteCandidates.map((candidate) => (
+                      <button
+                        key={candidate.property.id}
+                        type="button"
+                        onClick={() => {
+                          setOpenTieDialog(false);
+                          openReserveForProperty(candidate.property.id);
+                        }}
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        <p className="font-semibold text-foreground">{candidate.property.title}</p>
+                        <p className="text-xs text-muted-foreground">{candidate.vote.up} upvotes · {candidate.vote.down} downvotes</p>
+                      </button>
+                    ))}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={openReserveDialog} onOpenChange={setOpenReserveDialog}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Confirm reservation</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-foreground">Shortlisted property</label>
+                      <select
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={reserveForm.propertyId}
+                        onChange={(event) => setReserveForm((prev) => ({ ...prev, propertyId: event.target.value }))}
+                      >
+                        <option value="">Select property</option>
+                        {shortlistedRows
+                          .filter((row) => row.isReservable)
+                          .map((row) => (
+                            <option key={row.property.id} value={row.property.id}>
+                              {row.property.title}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-foreground">Check-in</label>
+                        <Input
+                          type="date"
+                          value={reserveForm.checkIn}
+                          onChange={(event) => setReserveForm((prev) => ({ ...prev, checkIn: event.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-foreground">Check-out</label>
+                        <Input
+                          type="date"
+                          value={reserveForm.checkOut}
+                          onChange={(event) => setReserveForm((prev) => ({ ...prev, checkOut: event.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-foreground">Guests</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={reserveForm.guests}
+                        onChange={(event) => setReserveForm((prev) => ({ ...prev, guests: Number(event.target.value || 1) }))}
+                      />
+                    </div>
+
+                    {reserveError ? (
+                      <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{reserveError}</div>
+                    ) : null}
+
+                    {reservePricing ? (
+                      <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm">
+                        <p className="font-semibold text-foreground">Price preview</p>
+                        <div className="mt-2 space-y-1 text-muted-foreground">
+                          <div className="flex items-center justify-between">
+                            <span>
+                              {formatCurrency(selectedReserveProperty?.pricePerNight || 0)} × {reservePricing.nights} night{reservePricing.nights > 1 ? "s" : ""}
+                            </span>
+                            <span>{formatCurrency(reservePricing.baseTotal)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Cleaning fee</span>
+                            <span>{formatCurrency(reservePricing.cleaningFee)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Service fee</span>
+                            <span>{formatCurrency(reservePricing.serviceFee)}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between border-t border-border pt-2 font-semibold text-foreground">
+                          <span>Total</span>
+                          <span>{formatCurrency(reservePricing.grandTotal)}</span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button className="flex-1" onClick={handleConfirmReservation} disabled={isCreatingBooking}>
+                        {isCreatingBooking ? "Reserving..." : "Confirm Reservation"}
+                      </Button>
+                      <Button variant="outline" className="flex-1" onClick={() => setOpenReserveDialog(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {isSavedPropertiesLoading &&
                   [...Array(3)].map((_, i) => <Skeleton key={i} className="h-72 w-full rounded-xl" />)}
                 {!isSavedPropertiesLoading && savedPropertyIds.map((propertyId) => {
-                  const p = savedPropertyMap.get(propertyId);
-                  const voteRow = voteSummaryMap.get(propertyId) || { up: 0, down: 0, userVote: null };
+                  const row = shortlistedRows.find((item) => item.propertyId === propertyId);
+                  const p = row?.property;
+                  const voteRow = row?.vote || { up: 0, down: 0, userVote: null };
+                  const isReservable = row?.isReservable || false;
+                  const isReserved = row?.isReserved || false;
 
                   if (!p) {
                     return (
@@ -353,11 +819,14 @@ export default function TripDetail() {
 
                   return (
                     <div key={p.id} className="relative">
-                      <Badge className="absolute left-3 top-3 z-10 shadow-sm">Saved</Badge>
+                      <div className="absolute left-3 top-3 z-10 flex gap-2">
+                        <Badge className="shadow-sm">Saved</Badge>
+                        {isReserved ? <Badge variant="secondary" className="shadow-sm">Reserved</Badge> : null}
+                      </div>
                       <PropertyCard property={p} groupSize={trip.groupSize} showPerPerson />
                       <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                         <span>Votes: {voteRow.up} up · {voteRow.down} down</span>
-                        <Link className="font-semibold text-primary hover:underline" to={`/property/${p.id}`}>View details</Link>
+                        <Link className="font-semibold text-primary hover:underline" to={`/properties/${p.id}`}>View details</Link>
                       </div>
                       <div className="mt-2 flex items-center gap-2">
                         <button
@@ -372,7 +841,29 @@ export default function TripDetail() {
                         >
                           <ThumbsDown className="h-3.5 w-3.5 text-destructive" /> <span className="font-medium">Downvote</span>
                         </button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReserveForProperty(p.id)}
+                          disabled={!isOrganizer || !isReservable || isReserved}
+                        >
+                          {isReserved ? "Reserved" : "Reserve"}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleRemoveShortlistedProperty(p.id)}
+                          disabled={isRemovingShortlisted}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          aria-label="Remove shortlisted property"
+                          title="Remove from shortlist"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
+                      {!isReservable ? (
+                        <p className="mt-1 text-xs text-muted-foreground">Planning-only stay: reservation is available for API-listed properties.</p>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -405,7 +896,7 @@ export default function TripDetail() {
                 <DialogTrigger asChild>
                   <Button className="mt-6 rounded-lg"><Plus className="mr-2 h-4 w-4" /> Add Expense</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Add Trip Expense</DialogTitle>
                   </DialogHeader>
@@ -703,16 +1194,17 @@ export default function TripDetail() {
 
           {activeTab === 4 && (
             <div>
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-6 flex flex-col gap-4 overflow-hidden sm:mb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="font-heading text-xl font-bold text-foreground">Members</h2>
                   <p className="text-sm text-muted-foreground">{trip.members.length} of {trip.groupSize} joined</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <Dialog open={openInviteDialog} onOpenChange={setOpenInviteDialog}>
                     <DialogTrigger asChild>
-                      <Button size="sm">
-                        <UserPlus className="mr-1 h-3.5 w-3.5" /> Invite Collaborator
+                      <Button size="sm" className="min-w-0 flex-1 justify-center sm:flex-none sm:w-auto">
+                        <UserPlus className="mr-1 h-3.5 w-3.5" />
+                        <span className="truncate">Invite</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
@@ -776,15 +1268,16 @@ export default function TripDetail() {
                     </DialogContent>
                   </Dialog>
 
-                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`https://splitsvilla.app/join/${trip.inviteCode}`); toast({ title: "Invite link copied!" }); }}>
-                    <Copy className="mr-1 h-3.5 w-3.5" /> Copy Invite Link
+                  <Button variant="outline" size="sm" className="min-w-0 flex-1 justify-center sm:flex-none sm:w-auto" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/join/${encodeURIComponent(trip.inviteCode)}`); toast({ title: "Invite link copied!" }); }}>
+                    <Copy className="mr-1 h-3.5 w-3.5" />
+                    <span className="truncate">Copy Link</span>
                   </Button>
                 </div>
               </div>
 
               {invites.filter((invite) => invite.status === "pending").length > 0 && (
-                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <div className="mb-2 flex items-center justify-between">
+                <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:mb-4">
+                  <div className="mb-3 flex flex-col gap-3 sm:mb-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold text-foreground">Pending invites</p>
                     <Button
                       variant="ghost"
@@ -802,46 +1295,114 @@ export default function TripDetail() {
                       .filter((invite) => invite.status === "pending")
                       .slice(0, 6)
                       .map((invite) => (
-                        <div key={invite.id} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-                          <span className="text-sm text-foreground">{invite.inviteeEmail}</span>
-                          <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">pending</span>
+                        <div key={invite.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-2">
+                          <div className="min-w-0">
+                            <span className="block truncate text-sm text-foreground">{invite.inviteeEmail}</span>
+                            <span className="rounded-full bg-info/10 px-2 py-0.5 text-xs font-medium text-info">pending</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => requestDeleteInvite(invite)}
+                            disabled={isDeletingInvite}
+                          >
+                            Delete
+                          </Button>
                         </div>
                       ))}
                   </div>
                 </div>
               )}
 
-              <div className="space-y-3">
-                {trip.members.map((m) => (
-                  <div key={m.userId} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
-                      {m.name[0]}
+              <div className="space-y-4 sm:space-y-3">
+                {displayMembers.map((m) => {
+                  const displayName = m.name || m.email || "Member";
+                  return (
+                  <div key={m.userId} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary sm:h-12 sm:w-12">
+                      {displayName[0]}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground">{m.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground">{displayName}</p>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "organizer" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                           {m.role}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{m.email}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-foreground">{formatCurrency(m.totalContributed)}</p>
-                      <p className="text-xs text-muted-foreground">contributed</p>
+                    <div className="flex items-baseline justify-between gap-6 rounded-lg bg-muted/30 px-4 py-2 sm:flex-col sm:justify-normal sm:gap-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-right">
+                      <p className="text-xs font-medium text-muted-foreground sm:text-xs">Contributed</p>
+                      <p className="text-base font-semibold text-foreground sm:text-sm">{formatCurrency(m.totalContributed)}</p>
                     </div>
                   </div>
-                ))}
+                );})}
               </div>
+
+              <AlertDialog open={!!inviteToDelete} onOpenChange={(open) => !open && setInviteToDelete(null)}>
+                <AlertDialogContent className="max-w-[92vw] rounded-lg sm:max-w-lg">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete invite?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {`Delete invite for ${inviteToDelete?.email || "this user"}? This person will no longer be able to join from this invitation link.`}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-2 sm:gap-0">
+                    <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+                      onClick={handleDeleteInvite}
+                      disabled={isDeletingInvite}
+                    >
+                      {isDeletingInvite ? "Deleting..." : "Delete Invite"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
 
           {activeTab === 5 && (
-            <div className="flex flex-col items-center py-12 text-center">
-              <Calendar className="h-16 w-16 text-muted" />
-              <h3 className="mt-4 font-heading text-xl font-bold text-foreground">No bookings yet</h3>
-              <p className="mt-2 text-muted-foreground">Finalize a property to create a booking for this trip</p>
-              <Button className="mt-6 rounded-full" onClick={() => setActiveTab(0)}>Browse Properties</Button>
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-heading text-xl font-bold text-foreground">Trip Bookings</h2>
+                <Button variant="outline" size="sm" onClick={() => refetchBookings()}>Refresh</Button>
+              </div>
+
+              {isBookingsLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-24 w-full rounded-xl" />
+                  <Skeleton className="h-24 w-full rounded-xl" />
+                </div>
+              ) : bookingRows.length > 0 ? (
+                <div className="space-y-3">
+                  {bookingRows.map(({ booking, propertyId, property }) => (
+                    <div key={booking.id} className="rounded-xl border border-border bg-card p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">{property?.title || `Property ${propertyId}`}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDateRange(booking.checkIn, booking.checkOut)} · {booking.nights} night{booking.nights > 1 ? "s" : ""}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{booking.guests} guests</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-heading text-lg font-bold text-foreground">{formatCurrency(booking.totalPrice)}</p>
+                          <Badge variant={booking.status === "cancelled" ? "destructive" : "secondary"}>{booking.status}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-12 text-center">
+                  <Calendar className="h-16 w-16 text-muted" />
+                  <h3 className="mt-4 font-heading text-xl font-bold text-foreground">No bookings yet</h3>
+                  <p className="mt-2 text-muted-foreground">Reserve a shortlisted stay to create a booking for this trip.</p>
+                  <Button className="mt-6 rounded-full" onClick={() => setActiveTab(0)}>Browse Properties</Button>
+                </div>
+              )}
             </div>
           )}
         </div>

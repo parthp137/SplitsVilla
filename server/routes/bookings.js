@@ -19,7 +19,7 @@ router.post(
     const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
     const property = await Property.findById(propertyId);
 
-    if (!property) {
+    if (!property || !property.isActive) {
       return res.status(404).json({ message: "Property not found" });
     }
 

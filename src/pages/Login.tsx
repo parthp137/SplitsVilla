@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,8 +12,10 @@ import { LoginSchema } from "@/lib/validationSchemas";
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [showPw, setShowPw] = useState(false);
+  const redirectTo = (location.state as { redirectTo?: string } | null)?.redirectTo;
   
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch } = useForm({
     resolver: zodResolver(LoginSchema),
@@ -25,7 +27,7 @@ export default function Login() {
       console.log("🔐 Logging in with:", data.email);
       await login(data.email, data.password);
       toast({ title: "Welcome back! 🎉" });
-      navigate("/dashboard");
+      navigate(redirectTo || "/", { replace: true });
     } catch (error: any) {
       console.error("❌ Login error:", error);
       toast({ 

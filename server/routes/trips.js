@@ -1,17 +1,80 @@
 import express from "express";
 import Trip from "../models/Trip.js";
 import Expense from "../models/Expense.js";
+import Booking from "../models/Booking.js";
 import User from "../models/User.js";
 import TripInvite from "../models/TripInvite.js";
 import Notification from "../models/Notification.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { generateInviteCode, generateToken } from "../utils/helpers.js";
+import { sendInviteEmail } from "../utils/email.js";
 import { settleExpenses } from "../utils/algorithms.js";
 
 const router = express.Router();
 
-const isTripOrganizer = (trip, userId) => trip.createdBy.toString() === userId;
+const getEntityId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return String(value._id || value.id || value);
+};
+
+const isTripOrganizer = (trip, userId) => getEntityId(trip.createdBy) === userId;
+
+const normalizeTripMembers = async (trip) => {
+  const organizerId = getEntityId(trip.createdBy);
+  const seenMemberIds = new Set();
+  const normalizedMembers = [];
+
+  for (const member of trip.members) {
+    const memberId = getEntityId(member.userId);
+    if (!memberId || seenMemberIds.has(memberId)) {
+      continue;
+    }
+
+    seenMemberIds.add(memberId);
+    normalizedMembers.push({
+      userId: member.userId,
+      name: member.name,
+      email: member.email,
+      avatar: member.avatar,
+      role: memberId === organizerId ? "organizer" : member.role || "member",
+      joinedAt: member.joinedAt,
+      totalContributed: member.totalContributed ?? 0,
+    });
+  }
+
+  if (organizerId && !seenMemberIds.has(organizerId)) {
+    const organizer = await User.findById(organizerId).select("_id name email avatar");
+    if (organizer) {
+      normalizedMembers.unshift({
+        userId: organizer._id,
+        name: organizer.name,
+        email: organizer.email,
+        avatar: organizer.avatar,
+        role: "organizer",
+        joinedAt: trip.createdAt,
+        totalContributed: 0,
+      });
+    }
+  }
+
+  const hasChanged =
+    normalizedMembers.length !== trip.members.length ||
+    normalizedMembers.some((member, index) => getEntityId(member.userId) !== getEntityId(trip.members[index]?.userId));
+
+  if (hasChanged) {
+    trip.members = normalizedMembers;
+    await trip.save();
+  }
+
+  return trip;
+};
+
+const ensureOrganizerInMembers = async (trip) => {
+  await normalizeTripMembers(trip);
+  return true;
+};
 
 const markExpiredInviteIfNeeded = async (invite) => {
   if (invite.status === "pending" && invite.expiresAt && invite.expiresAt.getTime() < Date.now()) {
@@ -20,6 +83,61 @@ const markExpiredInviteIfNeeded = async (invite) => {
     return true;
   }
   return false;
+};
+
+const acceptMatchingInvite = async (tripId, user) => {
+  const pendingInvite = await TripInvite.findOne({
+    tripId,
+    status: "pending",
+    $or: [
+      { inviteeUserId: user._id },
+      { inviteeEmail: user.email.toLowerCase() },
+    ],
+  }).sort({ createdAt: -1 });
+
+  if (!pendingInvite) {
+    return false;
+  }
+
+  if (pendingInvite.expiresAt && pendingInvite.expiresAt.getTime() < Date.now()) {
+    pendingInvite.status = "expired";
+    await pendingInvite.save();
+    return false;
+  }
+
+  pendingInvite.status = "accepted";
+  if (!pendingInvite.inviteeUserId) {
+    pendingInvite.inviteeUserId = user._id;
+  }
+  await pendingInvite.save();
+  return true;
+};
+
+const reconcileTripInvites = async (trip) => {
+  const membersByEmail = new Set(trip.members.map((member) => (member.email || "").toLowerCase()).filter(Boolean));
+  const memberIds = new Set(trip.members.map((member) => getEntityId(member.userId)).filter(Boolean));
+  const pendingInvites = await TripInvite.find({ tripId: trip._id, status: "pending" });
+
+  let changed = false;
+  for (const invite of pendingInvites) {
+    const inviteeUserId = getEntityId(invite.inviteeUserId);
+    const inviteEmail = (invite.inviteeEmail || "").toLowerCase();
+    const alreadyJoined = (inviteeUserId && memberIds.has(inviteeUserId)) || (inviteEmail && membersByEmail.has(inviteEmail));
+
+    if (alreadyJoined) {
+      invite.status = "accepted";
+      if (!invite.inviteeUserId) {
+        const matchingMember = trip.members.find((member) => (member.email || "").toLowerCase() === inviteEmail || getEntityId(member.userId) === inviteeUserId);
+        if (matchingMember?.userId) {
+          invite.inviteeUserId = matchingMember.userId;
+        }
+      }
+      await invite.save();
+      changed = true;
+    }
+  }
+
+  return changed;
 };
 
 router.post(
@@ -54,13 +172,20 @@ router.post(
 );
 
 router.get("/", authMiddleware, asyncHandler(async (req, res) => {
-  const trips = await Trip.find({ "members.userId": req.userId });
+  const trips = await Trip.find({
+    $or: [{ "members.userId": req.userId }, { createdBy: req.userId }],
+  }).populate("createdBy", "_id name email avatar");
+
+  await Promise.all(trips.map((trip) => ensureOrganizerInMembers(trip)));
   res.json(trips);
 }));
 
 router.get("/:id", authMiddleware, asyncHandler(async (req, res) => {
-  const trip = await Trip.findById(req.params.id);
+  const trip = await Trip.findById(req.params.id).populate("createdBy", "_id name email avatar");
   if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+  await ensureOrganizerInMembers(trip);
+
   const isMember = trip.members.some((member) => member.userId.toString() === req.userId);
   if (!isMember) {
     return res.status(403).json({ message: "You do not have access to this trip" });
@@ -68,21 +193,67 @@ router.get("/:id", authMiddleware, asyncHandler(async (req, res) => {
   res.json(trip);
 }));
 
+router.delete("/:id", authMiddleware, asyncHandler(async (req, res) => {
+  const trip = await Trip.findById(req.params.id).populate("createdBy", "_id name email avatar");
+  if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+  if (!isTripOrganizer(trip, req.userId)) {
+    return res.status(403).json({ message: "Only organizer can delete trip" });
+  }
+
+  await Promise.all([
+    TripInvite.deleteMany({ tripId: trip._id }),
+    Expense.deleteMany({ tripId: trip._id }),
+    Notification.deleteMany({ tripId: trip._id }),
+    Booking.updateMany({ tripId: trip._id }, { $unset: { tripId: 1 } }),
+  ]);
+
+  await Trip.deleteOne({ _id: trip._id });
+  res.json({ message: "Trip deleted", tripId: req.params.id });
+}));
+
 router.get(
   "/:id/invites",
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const trip = await Trip.findById(req.params.id);
+    const trip = await Trip.findById(req.params.id).populate("createdBy", "_id name email avatar");
     if (!trip) return res.status(404).json({ message: "Trip not found" });
     if (!isTripOrganizer(trip, req.userId)) {
       return res.status(403).json({ message: "Only organizer can view trip invites" });
     }
+
+    await ensureOrganizerInMembers(trip);
+    await reconcileTripInvites(trip);
 
     const invites = await TripInvite.find({ tripId: trip._id })
       .sort({ createdAt: -1 })
       .limit(50);
 
     res.json(invites);
+  })
+);
+
+router.delete(
+  "/:id/invites/:inviteId",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const trip = await Trip.findById(req.params.id).populate("createdBy", "_id name email avatar");
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    if (!isTripOrganizer(trip, req.userId)) {
+      return res.status(403).json({ message: "Only organizer can delete trip invites" });
+    }
+
+    const invite = await TripInvite.findOne({ _id: req.params.inviteId, tripId: trip._id });
+    if (!invite) {
+      return res.status(404).json({ message: "Invite not found" });
+    }
+
+    if (invite.status !== "pending") {
+      return res.status(400).json({ message: "Only pending invites can be deleted" });
+    }
+
+    await TripInvite.deleteOne({ _id: invite._id });
+    res.json({ message: "Invite deleted", inviteId: invite._id });
   })
 );
 
@@ -138,7 +309,12 @@ router.post(
       });
     }
 
-    res.status(201).json(invite);
+    const emailSent = await sendInviteEmail(rawEmail, trip.title, trip.inviteCode);
+
+    res.status(201).json({
+      ...invite.toObject(),
+      emailSent,
+    });
   })
 );
 
@@ -189,6 +365,7 @@ router.post(
         await trip.save();
       }
       invite.status = "accepted";
+      await acceptMatchingInvite(trip._id, user);
     } else {
       invite.status = "declined";
     }
@@ -211,6 +388,8 @@ router.post(
       trip.members.push({ userId: req.userId, name: user.name, email: user.email, avatar: user.avatar });
       await trip.save();
     }
+
+    await acceptMatchingInvite(trip._id, user);
 
     res.json(trip);
   })
@@ -242,6 +421,35 @@ router.post(
       await trip.save();
     }
 
+    res.json(trip);
+  })
+);
+
+router.delete(
+  "/:tripId/properties/:propertyId",
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const propertyId = (req.params.propertyId || "").toString().trim();
+    if (!propertyId) {
+      return res.status(400).json({ message: "Property ID is required" });
+    }
+
+    const trip = await Trip.findById(req.params.tripId);
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+
+    const isMember = trip.members.some((member) => member.userId.toString() === req.userId);
+    if (!isMember) {
+      return res.status(403).json({ message: "You must be part of the trip to remove shortlisted properties" });
+    }
+
+    const beforeCount = trip.savedProperties?.length || 0;
+    trip.savedProperties = (trip.savedProperties || []).filter((saved) => saved.propertyId.toString() !== propertyId);
+
+    if (trip.savedProperties.length === beforeCount) {
+      return res.status(404).json({ message: "Property is not shortlisted" });
+    }
+
+    await trip.save();
     res.json(trip);
   })
 );

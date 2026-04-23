@@ -26,6 +26,7 @@ const Wishlist = lazy(() => import("./pages/Wishlist"));
 const Bookings = lazy(() => import("./pages/Bookings"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const TripHistory = lazy(() => import("./pages/TripHistory"));
+const JoinTrip = lazy(() => import("./pages/JoinTrip"));
 const HostDashboard = lazy(() => import("./pages/HostDashboard"));
 const BecomeAHost = lazy(() => import("./pages/BecomeAHost"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -113,6 +114,7 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="/join/:code" element={<JoinTrip />} />
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/properties/:id" element={<PropertyDetail />} />
                   <Route path="/converter" element={<CurrencyConverter />} />

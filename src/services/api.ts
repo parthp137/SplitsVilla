@@ -264,14 +264,32 @@ class ApiClient {
     return this.request<Trip>(`/trips/${id}`);
   }
 
+  async deleteTrip(id: string) {
+    return this.request<{ message: string; tripId: string }>(`/trips/${id}`, {
+      method: "DELETE",
+    });
+  }
+
   async getTripInvites(tripId: string) {
     return this.request<TripInvite[]>(`/trips/${tripId}/invites`);
+  }
+
+  async deleteTripInvite(tripId: string, inviteId: string) {
+    return this.request<{ message: string; inviteId: string }>(`/trips/${tripId}/invites/${inviteId}`, {
+      method: "DELETE",
+    });
   }
 
   async shortlistProperty(tripId: string, propertyId: string) {
     return this.request<Trip>(`/trips/${tripId}/properties`, {
       method: "POST",
       body: JSON.stringify({ propertyId }),
+    });
+  }
+
+  async removeShortlistedProperty(tripId: string, propertyId: string) {
+    return this.request<Trip>(`/trips/${tripId}/properties/${encodeURIComponent(propertyId)}`, {
+      method: "DELETE",
     });
   }
 
@@ -381,6 +399,33 @@ class ApiClient {
     });
   }
 
+  async joinTripFromNotification(notificationId: string) {
+    return this.request<{ tripId: string; joined: boolean; alreadyMember: boolean }>(`/notifications/${notificationId}/join-trip`, {
+      method: "POST",
+    });
+  }
+
+  async getNotificationTripPreview(notificationId: string) {
+    return this.request<{
+      trip: {
+        id: string;
+        title: string;
+        destination: string;
+        country: string;
+        checkIn: string;
+        checkOut: string;
+        nights: number;
+        groupSize: number;
+        currentMembers: number;
+        budgetPerPerson: number;
+        currency: string;
+        status: string;
+      };
+      alreadyMember: boolean;
+      inviteExpiresAt: string | null;
+    }>(`/notifications/${notificationId}/trip-preview`);
+  }
+
   // ===== Currency =====
   async convertCurrency(amount: number, from: string, to: string) {
     return this.request<{ result: number; rate: number }>("/currency/convert", {
@@ -403,13 +448,32 @@ class ApiClient {
 
   // ===== Host Dashboard =====
   async getHostProperties() {
-    return this.request<Property[]>("/host/properties");
+    return this.request<Property[]>("/properties/host/properties");
   }
 
   async createProperty(data: Partial<Property>) {
-    return this.request<Property>("/host/properties", {
+    return this.request<Property>("/properties/host/properties", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  }
+
+  async updateHostProperty(id: string, data: Partial<Property>) {
+    return this.request<Property>(`/properties/host/properties/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async archiveHostProperty(id: string) {
+    return this.request<Property>(`/properties/host/properties/${id}/archive`, {
+      method: "PATCH",
+    });
+  }
+
+  async restoreHostProperty(id: string) {
+    return this.request<Property>(`/properties/host/properties/${id}/restore`, {
+      method: "PATCH",
     });
   }
 
@@ -419,7 +483,7 @@ class ApiClient {
       totalBookings: number;
       totalRevenue: number;
       avgRating: number;
-    }>("/host/stats");
+    }>("/properties/host/stats");
   }
 }
 

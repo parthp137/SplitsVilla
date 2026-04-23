@@ -128,7 +128,7 @@ export default function PropertyDetail() {
     setWishlisted(readWishlistIds().includes(property.id));
   }, [property.id]);
 
-  const canUseApiBooking = useMemo(() => isMongoId && Boolean(apiProperty), [isMongoId, apiProperty]);
+  const canUseApiBooking = useMemo(() => isMongoId && Boolean(apiProperty?.isActive), [isMongoId, apiProperty]);
   const { data: trips = [] } = useTrips();
   const { mutateAsync: shortlistProperty, isPending: isShortlistingProperty } = useShortlistProperty();
 

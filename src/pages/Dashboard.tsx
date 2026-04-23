@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Users, Plus, Heart, Plane, BarChart3, Bell, AlertCircle } from "lucide-react";
+import { MapPin, Calendar, Users, Plus, Heart, Plane, BarChart3, Bell, AlertCircle, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { mockNotifications } from "@/utils/mockData";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { formatDateRange, timeAgo } from "@/utils/formatDate";
-import { useTrips } from "@/hooks/useApi";
+import { useDeleteTrip, useTrips } from "@/hooks/useApi";
 import { DashboardSkeleton } from "@/components/SkeletonLoaders";
 import {
   PageTransitionWrapper,
@@ -14,11 +15,25 @@ import {
   BlurReveal,
   AnimatedCounter,
 } from "@/components/effects/AdvancedAnimations";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const { data: trips = [], isLoading, error } = useTrips();
+  const deleteTrip = useDeleteTrip();
+  const [tripToDelete, setTripToDelete] = useState<any | null>(null);
 
   const activeTrips = trips.filter((t) => t.status === "active" || t.status === "planning");
   const totalGroupMembers = activeTrips.reduce((acc, trip) => acc + trip.members.length, 0);
@@ -33,6 +48,35 @@ export default function Dashboard() {
     { label: "Trips Over Budget", value: overBudgetTrips, icon: AlertCircle },
     { label: "Total Group Spend", value: formatCurrency(totalGroupSpend), icon: BarChart3 },
   ];
+
+  const getTripOrganizerId = (trip: any) => {
+    const createdBy = trip?.createdBy;
+    if (!createdBy) return "";
+    if (typeof createdBy === "string") return createdBy;
+    return createdBy.id || createdBy._id || "";
+  };
+
+  const handleDeleteTrip = async () => {
+    if (!tripToDelete) return;
+
+    try {
+      await deleteTrip.mutateAsync(tripToDelete.id);
+      toast({ title: "Trip deleted", description: `\"${tripToDelete.title}\" has been removed.` });
+      setTripToDelete(null);
+    } catch (error) {
+      toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const requestDeleteTrip = (trip: any) => {
+    const organizerId = getTripOrganizerId(trip);
+    if (organizerId && organizerId !== user?.id) {
+      toast({ title: "Organizer only action", description: "Only the organizer can delete this trip.", variant: "destructive" });
+      return;
+    }
+
+    setTripToDelete(trip);
+  };
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -116,13 +160,30 @@ export default function Dashboard() {
                 ) : (
                   activeTrips.map((trip) => (
                     <motion.div key={trip.id} variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 1.02 }}>
-                      <Link to={`/trips/${trip.id}`} className="block rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-heading text-base font-bold">{trip.title}</h3>
+                      <Link to={`/trips/${trip.id}`} className="relative block rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-secondary/5 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-green-500/10 px-2 py-1 text-xs font-semibold text-green-500">{trip.status}</span>
+                              <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{trip.members.length}/{trip.groupSize} members</span>
+                            </div>
+                            <h3 className="mt-3 font-heading text-base font-bold">{trip.title}</h3>
                             <p className="mt-1 text-sm text-muted-foreground">{trip.destination}</p>
                           </div>
-                          <span className="rounded-full bg-green-500/10 px-2 py-1 text-xs font-semibold text-green-500">{trip.status}</span>
+                          {getTripOrganizerId(trip) === user?.id && (
+                            <button
+                              type="button"
+                              className="shrink-0 rounded-full border border-destructive/20 bg-background/90 p-2 text-destructive shadow-sm transition hover:bg-destructive/10"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                requestDeleteTrip(trip);
+                              }}
+                              aria-label={`Delete ${trip.title}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </Link>
                     </motion.div>
@@ -155,6 +216,27 @@ export default function Dashboard() {
             </motion.div>
           </div>
         </div>
+
+        <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
+          <AlertDialogContent className="max-w-[92vw] rounded-lg sm:max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete trip?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`Delete \"${tripToDelete?.title || "this trip"}\"? This removes the trip, invites, expenses, and related notifications.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+                onClick={handleDeleteTrip}
+                disabled={deleteTrip.isPending}
+              >
+                {deleteTrip.isPending ? "Deleting..." : "Delete Trip"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </PageTransitionWrapper>
   );

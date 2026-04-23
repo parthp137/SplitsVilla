@@ -118,11 +118,24 @@ export function useTrip(id: string | undefined) {
   });
 }
 
+export function useDeleteTrip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tripId: string) => api.deleteTrip(tripId),
+    onSuccess: (_, tripId) => {
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+  });
+}
+
 export function useTripInvites(tripId: string | undefined) {
   return useQuery({
     queryKey: ["trip-invites", tripId],
     queryFn: () => (tripId ? api.getTripInvites(tripId) : []),
     enabled: !!tripId,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -137,6 +150,18 @@ export function useShortlistProperty() {
   });
 }
 
+export function useRemoveShortlistedProperty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, propertyId }: { tripId: string; propertyId: string }) => api.removeShortlistedProperty(tripId, propertyId),
+    onSuccess: (_, { tripId }) => {
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip-votes", tripId] });
+    },
+  });
+}
+
 export function useInviteTripMember() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -144,6 +169,18 @@ export function useInviteTripMember() {
     onSuccess: (_, { tripId }) => {
       queryClient.invalidateQueries({ queryKey: ["trip-invites", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+  });
+}
+
+export function useDeleteTripInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tripId, inviteId }: { tripId: string; inviteId: string }) => api.deleteTripInvite(tripId, inviteId),
+    onSuccess: (_, { tripId }) => {
+      queryClient.invalidateQueries({ queryKey: ["trip-invites", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
     },
   });
 }
@@ -244,6 +281,26 @@ export function useMarkAllNotificationsAsRead() {
   });
 }
 
+export function useJoinTripFromNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (notificationId: string) => api.joinTripFromNotification(notificationId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      if (result?.tripId) {
+        queryClient.invalidateQueries({ queryKey: ["trip", result.tripId] });
+      }
+    },
+  });
+}
+
+export function useNotificationTripPreview() {
+  return useMutation({
+    mutationFn: (notificationId: string) => api.getNotificationTripPreview(notificationId),
+  });
+}
+
 // Currency hooks
 export function useCurrencyConversion() {
   return useMutation({
@@ -299,6 +356,43 @@ export function useCreateProperty() {
   return useMutation({
     mutationFn: (data: any) => api.createProperty(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["host-properties"] });
+      queryClient.invalidateQueries({ queryKey: ["host-stats"] });
+    },
+  });
+}
+
+export function useUpdateProperty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.updateHostProperty(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["host-properties"] });
+      queryClient.invalidateQueries({ queryKey: ["host-stats"] });
+    },
+  });
+}
+
+export function useArchiveProperty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.archiveHostProperty(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["host-properties"] });
+      queryClient.invalidateQueries({ queryKey: ["host-stats"] });
+    },
+  });
+}
+
+export function useRestoreProperty() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.restoreHostProperty(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
       queryClient.invalidateQueries({ queryKey: ["host-properties"] });
       queryClient.invalidateQueries({ queryKey: ["host-stats"] });
     },

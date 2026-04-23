@@ -1,11 +1,24 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, MapPin, Calendar, Users, AlertCircle } from "lucide-react";
+import { Plus, MapPin, Calendar, Users, AlertCircle, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useTrips } from "@/hooks/useApi";
+import { useDeleteTrip, useTrips } from "@/hooks/useApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateRange } from "@/utils/formatDate";
 import { formatCurrency } from "@/utils/formatCurrency";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusColors: Record<string, string> = {
   planning: "bg-info/10 text-info",
@@ -15,8 +28,41 @@ const statusColors: Record<string, string> = {
 };
 
 export default function MyTrips() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const { data: trips = [], isLoading, error } = useTrips();
+  const deleteTrip = useDeleteTrip();
+  const [tripToDelete, setTripToDelete] = useState<any | null>(null);
+
+  const getTripOrganizerId = (trip: any) => {
+    const createdBy = trip?.createdBy;
+    if (!createdBy) return "";
+    if (typeof createdBy === "string") return createdBy;
+    return createdBy.id || createdBy._id || "";
+  };
+
+  const handleDeleteTrip = async () => {
+    if (!tripToDelete) return;
+
+    try {
+      await deleteTrip.mutateAsync(tripToDelete.id);
+      toast({ title: "Trip deleted", description: `\"${tripToDelete.title}\" has been removed.` });
+      setTripToDelete(null);
+    } catch (error) {
+      toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const requestDeleteTrip = (trip: any) => {
+    const organizerId = getTripOrganizerId(trip);
+    if (organizerId && organizerId !== user?.id) {
+      toast({ title: "Organizer only action", description: "Only the organizer can delete this trip.", variant: "destructive" });
+      return;
+    }
+
+    setTripToDelete(trip);
+  };
 
   if (isLoading) {
     return (
@@ -69,19 +115,38 @@ export default function MyTrips() {
             const spentRatio = totalBudget > 0 ? (trip.totalExpenses / totalBudget) * 100 : 0;
             const perPersonSpent = trip.totalExpenses / membersCount;
             const overBudget = trip.totalExpenses > totalBudget;
+            const canDelete = getTripOrganizerId(trip) === user?.id;
 
             return (
-            <Link to={`/trips/${trip.id}`} key={trip.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-shadow hover:shadow-card-hover">
+            <Link to={`/trips/${trip.id}`} key={trip.id} className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-shadow hover:shadow-card-hover">
               <div className="relative h-40 bg-gradient-to-br from-primary/20 to-secondary/20">
                 {trip.finalizedProperty?.images[0] && (
                   <img src={trip.finalizedProperty.images[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
                 )}
-                <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${statusColors[trip.status]}`}>
-                  {trip.status}
-                </span>
-                <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${overBudget ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-                  {overBudget ? "Over budget" : "On track"}
-                </span>
+                <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap gap-2 pr-10">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusColors[trip.status]}`}>
+                      {trip.status}
+                    </span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${overBudget ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+                      {overBudget ? "Over budget" : "On track"}
+                    </span>
+                  </div>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-full border border-destructive/20 bg-background/90 p-2 text-destructive shadow-sm transition hover:bg-destructive/10"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        requestDeleteTrip(trip);
+                      }}
+                      aria-label={`Delete ${trip.title}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="p-5">
                 <h3 className="font-heading text-lg font-bold text-foreground">{trip.title}</h3>
@@ -128,6 +193,27 @@ export default function MyTrips() {
           })}
         </div>
       </div>
+
+      <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
+        <AlertDialogContent className="max-w-[92vw] rounded-lg sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete trip?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`Delete \"${tripToDelete?.title || "this trip"}\"? This removes the trip, invites, expenses, and related notifications.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90 sm:w-auto"
+              onClick={handleDeleteTrip}
+              disabled={deleteTrip.isPending}
+            >
+              {deleteTrip.isPending ? "Deleting..." : "Delete Trip"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

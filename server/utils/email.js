@@ -9,7 +9,13 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendInviteEmail = async (to, tripTitle, inviteCode) => {
-  const inviteLink = `${process.env.CLIENT_URL}/join/${inviteCode}`;
+  const clientUrl = (process.env.CLIENT_URL || "http://localhost:8080").replace(/\/$/, "");
+  const inviteLink = `${clientUrl}/join/${encodeURIComponent(inviteCode)}`;
+
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    console.warn("Invite email skipped: EMAIL_USER or EMAIL_PASSWORD is missing.");
+    return false;
+  }
 
   try {
     await transporter.sendMail({
@@ -23,8 +29,10 @@ export const sendInviteEmail = async (to, tripTitle, inviteCode) => {
         <p>Or use code: ${inviteCode}</p>
       `,
     });
+    return true;
   } catch (err) {
     console.error("Email send failed:", err);
+    return false;
   }
 };
 
