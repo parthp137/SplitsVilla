@@ -27,14 +27,38 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === "production";
 
+const normalizeOrigin = (value) => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, "");
+  }
+};
+
+const isWildcardMatch = (pattern, origin) => {
+  if (!pattern.includes("*")) return false;
+
+  const escaped = pattern
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*");
+
+  return new RegExp(`^${escaped}$`).test(origin);
+};
+
 // Middleware
-const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "")
+const configuredOrigins = (
+  process.env.CLIENT_URLS || process.env.CLIENT_URL || process.env.RENDER_EXTERNAL_URL || ""
+)
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 const defaultLocalOrigins = ["http://localhost:8080", "http://localhost:8082", "http://localhost:5173"];
-const allowedOrigins = [...new Set([...configuredOrigins, ...defaultLocalOrigins])];
+const allowedOrigins = [...new Set([...configuredOrigins, ...defaultLocalOrigins].map(normalizeOrigin))];
 console.log(
   `CORS Origins configured as: ${allowedOrigins.length ? allowedOrigins.join(", ") : "* (all)"}`,
 );
@@ -47,13 +71,19 @@ const corsOptions = {
       return;
     }
 
+    const normalizedOrigin = normalizeOrigin(origin);
+
     // If no origins are configured, allow all browser origins.
-    if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+    if (
+      !allowedOrigins.length ||
+      allowedOrigins.includes(normalizedOrigin) ||
+      allowedOrigins.some((allowedOrigin) => isWildcardMatch(allowedOrigin, normalizedOrigin))
+    ) {
       callback(null, true);
       return;
     }
 
-    callback(new Error(`CORS blocked for origin: ${origin}`));
+    callback(new Error(`CORS blocked for origin: ${normalizedOrigin}`));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
