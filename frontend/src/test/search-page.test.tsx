@@ -12,6 +12,18 @@ vi.mock("@/components/common/Navbar", () => ({
   default: () => <div>Navbar</div>,
 }));
 
+vi.mock("@/components/MapView", () => ({
+  default: () => <div>MapView</div>,
+}));
+
+vi.mock("@/components/effects/AdvancedAnimations", () => ({
+  PageTransitionWrapper: ({ children }: any) => <div>{children}</div>,
+  BlurReveal: ({ children }: any) => <div>{children}</div>,
+  StaggeredListAnimation: ({ children }: any) => <div>{children}</div>,
+  AnimatedButton: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  AmbientBackgroundMotion: () => null,
+}));
+
 vi.mock("@/components/property/PropertyCard", () => ({
   default: ({ property }: { property: { title: string } }) => <div>{property.title}</div>,
 }));
@@ -49,7 +61,7 @@ describe("Search page", () => {
     expect(screen.getByText("Goa Beach Villa")).toBeInTheDocument();
     expect(screen.getByText("Manali Retreat")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText("Search by city, property name..."), {
+    fireEvent.change(screen.getByPlaceholderText("Search by city or property..."), {
       target: { value: "goa" },
     });
 

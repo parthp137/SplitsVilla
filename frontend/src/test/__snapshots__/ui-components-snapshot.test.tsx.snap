@@ -1,0 +1,347 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`UI Components Snapshot > Badge Component > renders default badge 1`] = `
+<div>
+  <div
+    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80"
+  >
+    Default
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Badge Component > renders destructive badge 1`] = `
+<div>
+  <div
+    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80"
+  >
+    Error
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Badge Component > renders outline badge 1`] = `
+<div>
+  <div
+    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"
+  >
+    Outline
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Badge Component > renders secondary badge 1`] = `
+<div>
+  <div
+    class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
+  >
+    Secondary
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Button Component > renders default button 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+  >
+    Click me
+  </button>
+</div>
+`;
+
+exports[`UI Components Snapshot > Button Component > renders destructive button variant 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 rounded-md px-3"
+  >
+    Delete
+  </button>
+</div>
+`;
+
+exports[`UI Components Snapshot > Button Component > renders disabled button 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+    disabled=""
+  >
+    Disabled
+  </button>
+</div>
+`;
+
+exports[`UI Components Snapshot > Button Component > renders loading button 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+    disabled=""
+  >
+    Loading...
+  </button>
+</div>
+`;
+
+exports[`UI Components Snapshot > Button Component > renders primary button variant 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-11 rounded-md px-8"
+  >
+    Primary Action
+  </button>
+</div>
+`;
+
+exports[`UI Components Snapshot > Button Component > renders secondary button variant 1`] = `
+<div>
+  <button
+    class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-secondary text-secondary-foreground hover:bg-secondary/80"
+  >
+    Secondary Action
+  </button>
+</div>
+`;
+
+exports[`UI Components Snapshot > Card Component > renders card with content 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="flex flex-col space-y-1.5 p-6"
+    >
+      <h3
+        class="text-2xl font-semibold leading-none tracking-tight"
+      >
+        Card Title
+      </h3>
+      <p
+        class="text-sm text-muted-foreground"
+      >
+        Card description goes here
+      </p>
+    </div>
+    <div
+      class="p-6 pt-0"
+    >
+      <p>
+        Card content
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Card Component > renders card with multiple sections 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="flex flex-col space-y-1.5 p-6"
+    >
+      <h3
+        class="text-2xl font-semibold leading-none tracking-tight"
+      >
+        Multi-Section Card
+      </h3>
+    </div>
+    <div
+      class="p-6 pt-0 space-y-4"
+    >
+      <div>
+        Section 1
+      </div>
+      <div>
+        Section 2
+      </div>
+      <div>
+        Section 3
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Card Component > renders compact card 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm p-3"
+  >
+    <p
+      class="text-sm"
+    >
+      Compact card
+    </p>
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Card Component > renders interactive card 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer hover:shadow-lg transition-shadow"
+  >
+    <div
+      class="flex flex-col space-y-1.5 p-6"
+    >
+      <h3
+        class="text-2xl font-semibold leading-none tracking-tight"
+      >
+        Interactive Card
+      </h3>
+    </div>
+    <div
+      class="p-6 pt-0"
+    >
+      <p>
+        Click me!
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Component Combinations > renders form-like structure 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="flex flex-col space-y-1.5 p-6"
+    >
+      <h3
+        class="text-2xl font-semibold leading-none tracking-tight"
+      >
+        Login Form
+      </h3>
+    </div>
+    <div
+      class="p-6 pt-0 space-y-4"
+    >
+      <div>
+        <label
+          class="text-sm font-medium"
+        >
+          Email
+        </label>
+        <input
+          class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+          placeholder="your@email.com"
+          type="email"
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium"
+        >
+          Password
+        </label>
+        <input
+          class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+          placeholder="••••••••"
+          type="password"
+        />
+      </div>
+      <button
+        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"
+      >
+        Login
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Component Combinations > renders listing card with badge 1`] = `
+<div>
+  <div
+    class="rounded-lg border bg-card text-card-foreground shadow-sm"
+  >
+    <div
+      class="p-6 flex flex-row items-start justify-between space-y-0"
+    >
+      <div>
+        <h3
+          class="text-2xl font-semibold leading-none tracking-tight"
+        >
+          Property Title
+        </h3>
+        <p
+          class="text-sm text-muted-foreground"
+        >
+          Location, Type
+        </p>
+      </div>
+      <div
+        class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80"
+      >
+        New
+      </div>
+    </div>
+    <div
+      class="p-6 pt-0"
+    >
+      <p
+        class="text-2xl font-bold"
+      >
+        ₹15,000
+      </p>
+      <p
+        class="text-xs text-muted-foreground"
+      >
+        per night
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`UI Components Snapshot > Input Component > renders default input 1`] = `
+<div>
+  <input
+    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+    placeholder="Enter text..."
+  />
+</div>
+`;
+
+exports[`UI Components Snapshot > Input Component > renders disabled input 1`] = `
+<div>
+  <input
+    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+    disabled=""
+    placeholder="Disabled input"
+  />
+</div>
+`;
+
+exports[`UI Components Snapshot > Input Component > renders input with error state 1`] = `
+<div>
+  <input
+    aria-invalid="true"
+    class="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-destructive"
+    placeholder="Invalid input"
+  />
+</div>
+`;
+
+exports[`UI Components Snapshot > Input Component > renders input with type email 1`] = `
+<div>
+  <input
+    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+    placeholder="your@email.com"
+    type="email"
+  />
+</div>
+`;
+
+exports[`UI Components Snapshot > Input Component > renders input with type password 1`] = `
+<div>
+  <input
+    class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+    placeholder="Enter password"
+    type="password"
+  />
+</div>
+`;

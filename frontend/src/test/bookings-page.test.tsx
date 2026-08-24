@@ -8,6 +8,9 @@ const navigateMock = vi.fn();
 
 vi.mock("@/hooks/useApi", () => ({
   useBookings: vi.fn(),
+  useBooking: vi.fn(() => ({ data: undefined, isLoading: false })),
+  useCancelBooking: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+  useCreateReview: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
 }));
 
 vi.mock("@/components/common/Navbar", () => ({
@@ -32,10 +35,7 @@ describe("Bookings page", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("No bookings yet. Start exploring properties!")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Browse Properties" }));
-    expect(navigateMock).toHaveBeenCalledWith("/search");
+    expect(screen.getByText("No bookings yet.")).toBeInTheDocument();
   });
 
   it("renders booking cards when data exists", () => {
