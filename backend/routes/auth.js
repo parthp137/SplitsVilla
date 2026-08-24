@@ -1,5 +1,5 @@
 import express from "express";
-import { body } from "express-validator";
+import { body, validationResult } from "express-validator";
 import User from "../models/User.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -21,9 +21,18 @@ const buildUserPayload = (user) => ({
   createdAt: user.createdAt,
 });
 
+const validateRequest = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: "Validation failed", errors: errors.array() });
+  }
+  next();
+};
+
 router.post(
   "/register",
   [body("email").isEmail(), body("password").isLength({ min: 6 }), body("name").notEmpty()],
+  validateRequest,
   asyncHandler(async (req, res) => {
     const { name, email, password, role } = req.body;
 
@@ -41,6 +50,7 @@ router.post(
 router.post(
   "/login",
   [body("email").isEmail(), body("password").notEmpty()],
+  validateRequest,
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
