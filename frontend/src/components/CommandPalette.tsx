@@ -24,7 +24,7 @@ export function CommandPalette() {
   const { user, logout } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const commands: CommandItem[] = [
+  const commands: CommandItem[] = useMemo(() => [
     // Navigation
     {
       id: "home",
@@ -112,7 +112,7 @@ export function CommandPalette() {
       category: "account",
       shortcut: "⌘L",
     },
-  ];
+  ], [navigate, logout]);
 
   const filteredCommands = commands.filter((cmd) =>
     cmd.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -177,7 +177,7 @@ export function CommandPalette() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, filteredCommands, selectedIndex]);
+  }, [isOpen, filteredCommands, selectedIndex, commands]);
 
   // Focus input when opened
   useEffect(() => {

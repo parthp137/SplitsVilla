@@ -36,13 +36,14 @@ export function LazyImage({
       { rootMargin: "50px" }
     );
 
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+    const currentImg = imgRef.current;
+    if (currentImg) {
+      observer.observe(currentImg);
     }
 
     return () => {
-      if (imgRef.current) {
-        observer.unobserve(imgRef.current);
+      if (currentImg) {
+        observer.unobserve(currentImg);
       }
     };
   }, []);
