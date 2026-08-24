@@ -61,7 +61,7 @@ export default function Dashboard() {
 
     try {
       await deleteTrip.mutateAsync(tripToDelete.id);
-      toast({ title: "Trip deleted", description: `\"${tripToDelete.title}\" has been removed.` });
+      toast({ title: "Trip deleted", description: `"${tripToDelete.title}" has been removed.` });
       setTripToDelete(null);
     } catch (error) {
       toast({ title: "Could not delete trip", description: "Please try again.", variant: "destructive" });
@@ -222,7 +222,7 @@ export default function Dashboard() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete trip?</AlertDialogTitle>
               <AlertDialogDescription>
-                {`Delete \"${tripToDelete?.title || "this trip"}\"? This removes the trip, invites, expenses, and related notifications.`}
+                {`Delete "${tripToDelete?.title || "this trip"}"? This removes the trip, invites, expenses, and related notifications.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2 sm:gap-0">
