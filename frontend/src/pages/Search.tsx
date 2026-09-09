@@ -61,6 +61,8 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState(parseInt(searchParams.get("sort") || "0"));
   const [activeType, setActiveType] = useState(searchParams.get("type") || "All");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | undefined>();
+  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
+  const [searchGroupSize, setSearchGroupSize] = useState<number>(4);
   const [priceMin, setPriceMin] = useState(parseInt(searchParams.get("priceMin") || "0"));
   const [priceMax, setPriceMax] = useState(parseInt(searchParams.get("priceMax") || String(PRICE_MAX)));
   const [minRating, setMinRating] = useState(parseFloat(searchParams.get("ratingMin") || searchParams.get("rating") || "0"));
@@ -522,7 +524,19 @@ export default function SearchPage() {
             transition={{ delay: 0.4 }}
           >
             <motion.div className="hidden overflow-hidden rounded-3xl border border-primary/20 lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-7rem)]">
-              <MapView properties={filtered} selectedId={selectedPropertyId} onPropertyClick={setSelectedPropertyId} />
+              <MapView
+                properties={filtered}
+                selectedId={selectedPropertyId}
+                hoveredId={hoveredPropertyId || undefined}
+                onPropertyClick={(id) => {
+                  setSelectedPropertyId(id);
+                  const cardElement = document.getElementById(`property-card-${id}`);
+                  if (cardElement) {
+                    cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                }}
+                onPropertyHover={setHoveredPropertyId}
+              />
             </motion.div>
 
             <div className="lg:h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
@@ -531,22 +545,36 @@ export default function SearchPage() {
               ) : filtered.length > 0 ? (
                 <StaggeredListAnimation>
                   <motion.div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {filtered.map((p) => (
-                      <motion.div
-                        key={p.id}
-                        onClick={() => setSelectedPropertyId(p.id)}
-                        className={selectedPropertyId === p.id ? "ring-2 ring-primary" : ""}
-                        whileHover={{ scale: 1.05, y: -5 }}
-                      >
-                        <PropertyCard
-                          property={p}
-                          groupSize={4}
-                          showPerPerson
-                          isWishlisted={wishlistIds.includes(p.id)}
-                          onWishlistToggle={handleWishlistToggle}
-                        />
-                      </motion.div>
-                    ))}
+                    {filtered.map((p) => {
+                      const isHovered = hoveredPropertyId === p.id;
+                      const isSelected = selectedPropertyId === p.id;
+
+                      return (
+                        <motion.div
+                          key={p.id}
+                          id={`property-card-${p.id}`}
+                          onClick={() => setSelectedPropertyId(p.id)}
+                          onMouseEnter={() => setHoveredPropertyId(p.id)}
+                          onMouseLeave={() => setHoveredPropertyId((cur) => (cur === p.id ? null : cur))}
+                          className={`rounded-2xl transition-all duration-300 ${
+                            isSelected
+                              ? "ring-2 ring-primary shadow-lg scale-[1.02]"
+                              : isHovered
+                              ? "ring-2 ring-primary/60 shadow-md scale-[1.01]"
+                              : ""
+                          }`}
+                          whileHover={{ scale: 1.03, y: -4 }}
+                        >
+                          <PropertyCard
+                            property={p}
+                            groupSize={searchGroupSize}
+                            showPerPerson
+                            isWishlisted={wishlistIds.includes(p.id)}
+                            onWishlistToggle={handleWishlistToggle}
+                          />
+                        </motion.div>
+                      );
+                    })}
                   </motion.div>
                 </StaggeredListAnimation>
               ) : (
