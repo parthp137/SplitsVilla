@@ -40,6 +40,13 @@ import {
   useDeleteTripInvite,
   useRemoveShortlistedProperty,
 } from "@/hooks/useApi";
+import { ConsensusHub } from "@/components/trip/ConsensusHub";
+import { PropertyFaceOffModal } from "@/components/trip/PropertyFaceOffModal";
+import { SettlementFlowVisualizer } from "@/components/trip/SettlementFlowVisualizer";
+import { ItineraryTimeline } from "@/components/trip/ItineraryTimeline";
+import { TripPresenceBar } from "@/components/trip/TripPresenceBar";
+import { TripActivityFeed } from "@/components/trip/TripActivityFeed";
+import { ItineraryDay, Activity, Property } from "@/types";
 
 const tabs = ["Properties", "Expenses", "Itinerary", "AI Budget", "Members", "Bookings"];
 const MONGO_ID_REGEX = /^[a-f\d]{24}$/i;
@@ -79,6 +86,12 @@ export default function TripDetail() {
     splitWith: [] as string[],
     receipt: "",
   });
+  const [faceOffOpen, setFaceOffOpen] = useState(false);
+  const [faceOffPair, setFaceOffPair] = useState<{ propertyA: Property | null; propertyB: Property | null }>({
+    propertyA: null,
+    propertyB: null,
+  });
+  const [itinerarySchedule, setItinerarySchedule] = useState<ItineraryDay[]>([]);
   
   const { data: trip, isLoading: isTripLoading, refetch: refetchTrip } = useTrip(id);
   const { data: invites = [], refetch: refetchInvites } = useTripInvites(id);
@@ -356,6 +369,54 @@ export default function TripDetail() {
     }
   };
 
+  useEffect(() => {
+    if (trip && trip.nights && itinerarySchedule.length === 0) {
+      const generatedDays: ItineraryDay[] = Array.from({ length: trip.nights }, (_, i) => {
+        const dateObj = new Date(trip.checkIn);
+        dateObj.setDate(dateObj.getDate() + i);
+        return {
+          id: `day-${i + 1}`,
+          dayNumber: i + 1,
+          date: formatDate(dateObj),
+          activities: i === 0 ? [
+            { id: "act-1", time: "10:00", title: `Check-in & settle at ${trip.destination}`, category: "leisure", location: trip.destination, estimatedCost: 0 },
+            { id: "act-2", time: "13:30", title: "Group lunch & welcome drinks", category: "food", location: "Local Bistro", estimatedCost: 1800 },
+            { id: "act-3", time: "16:30", title: "Sunset sightseeing & beach walk", category: "sightseeing", estimatedCost: 0 },
+            { id: "act-4", time: "20:00", title: "Dinner & trip briefing", category: "food", estimatedCost: 2500 }
+          ] : []
+        };
+      });
+      setItinerarySchedule(generatedDays);
+    }
+  }, [trip?.id, trip?.nights, trip?.checkIn]);
+
+  const handleAddTimelineActivity = (dayId: string, activity: Omit<Activity, "id">) => {
+    setItinerarySchedule((prev) =>
+      prev.map((day) =>
+        day.id === dayId
+          ? { ...day, activities: [...day.activities, { ...activity, id: `act-${Date.now()}` }] }
+          : day
+      )
+    );
+    toast({ title: "Activity added to itinerary" });
+  };
+
+  const handleDeleteTimelineActivity = (dayId: string, activityId: string) => {
+    setItinerarySchedule((prev) =>
+      prev.map((day) =>
+        day.id === dayId
+          ? { ...day, activities: day.activities.filter((a) => a.id !== activityId) }
+          : day
+      )
+    );
+    toast({ title: "Activity removed" });
+  };
+
+  const openFaceOffModal = (propertyA: Property, propertyB: Property) => {
+    setFaceOffPair({ propertyA, propertyB });
+    setFaceOffOpen(true);
+  };
+
   const handleSettleExpenses = async () => {
     if (!id) return;
     try {
@@ -599,7 +660,8 @@ export default function TripDetail() {
                 <span className="flex items-center gap-1"><Users className="h-4 w-4" />{displayMembers.length}/{trip.groupSize} members</span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <TripActivityFeed trip={trip} expenses={expenses} />
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                 trip.status === "active" ? "bg-success/10 text-success" : trip.status === "planning" ? "bg-info/10 text-info" : "bg-muted text-muted-foreground"
               }`}>{trip.status}</span>
@@ -608,16 +670,12 @@ export default function TripDetail() {
               </Button>
             </div>
           </div>
-          {/* Member avatars */}
-          <div className="mt-4 flex items-center gap-3">
-            <div className="flex -space-x-2">
-              {trip.members.slice(0, 6).map((m) => (
-                <div key={m.userId} className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-card bg-muted text-sm font-semibold text-foreground" title={m.name}>
-                  {m.name[0]}
-                </div>
-              ))}
+          {/* Member avatars & Presence bar */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border/50">
+            <TripPresenceBar members={trip.members} currentUserId={user?.id} />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{trip.members.length} group members</span>
             </div>
-            <span className="text-sm text-muted-foreground">{trip.members.length} members</span>
           </div>
         </div>
 
@@ -640,9 +698,23 @@ export default function TripDetail() {
         <div className="mt-6">
           {activeTab === 0 && (
             <div>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-heading text-xl font-bold text-foreground">Shortlisted Properties</h2>
-                <div className="flex items-center gap-2">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="font-heading text-xl font-bold text-foreground">Shortlisted Properties & Voting</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  {shortlistedRows.length >= 2 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="gap-1.5 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                      onClick={() => {
+                        const propA = shortlistedRows[0]?.property;
+                        const propB = shortlistedRows[1]?.property;
+                        if (propA && propB) openFaceOffModal(propA, propB);
+                      }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> Compare Face-Off
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -662,20 +734,31 @@ export default function TripDetail() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-foreground">{trip.savedProperties.length} property shortlist{trip.savedProperties.length > 1 ? "s" : ""}</p>
-                      <p className="text-sm text-muted-foreground">Saved directly from property detail while planning the trip.</p>
+                      <p className="text-sm text-muted-foreground">Shortlist stays and vote together. Real-time consensus helps your group finalize faster.</p>
                       {recommendedTopVoted ? (
-                        <p className="mt-1 text-xs text-primary">
-                          Top-voted: {recommendedTopVoted.property.title}
+                        <p className="mt-1 text-xs text-primary font-medium">
+                          Leading consensus stay: <strong>{recommendedTopVoted.property.title}</strong>
                           {hasTopVoteTie ? " (tie - choose before reserving)" : ""}
                         </p>
                       ) : (
-                        <p className="mt-1 text-xs text-muted-foreground">No reservable shortlisted stays yet.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">No votes cast yet. Upvote your favorite stay below.</p>
                       )}
                     </div>
                     <Badge variant="secondary">Saved stays</Badge>
                   </div>
                 </div>
               ) : null}
+
+              <PropertyFaceOffModal
+                isOpen={faceOffOpen}
+                onClose={() => setFaceOffOpen(false)}
+                propertyA={faceOffPair.propertyA}
+                propertyB={faceOffPair.propertyB}
+                groupSize={trip.groupSize}
+                onSelectProperty={(prop) => {
+                  openReserveForProperty(prop.id);
+                }}
+              />
 
               <Dialog open={openTieDialog} onOpenChange={setOpenTieDialog}>
                 <DialogContent className="max-w-lg">
@@ -818,32 +901,57 @@ export default function TripDetail() {
                   }
 
                   return (
-                    <div key={p.id} className="relative">
-                      <div className="absolute left-3 top-3 z-10 flex gap-2">
+                    <div key={p.id} className="relative rounded-2xl border border-border/80 bg-card/60 p-3 space-y-3 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="absolute left-5 top-5 z-10 flex gap-2">
                         <Badge className="shadow-sm">Saved</Badge>
                         {isReserved ? <Badge variant="secondary" className="shadow-sm">Reserved</Badge> : null}
                       </div>
                       <PropertyCard property={p} groupSize={trip.groupSize} showPerPerson />
-                      <div className="mt-2 flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        <span>Votes: {voteRow.up} up · {voteRow.down} down</span>
-                        <Link className="font-semibold text-primary hover:underline" to={`/properties/${p.id}`}>View details</Link>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
+                      
+                      {/* Real-time Consensus & Voter Hub */}
+                      <ConsensusHub
+                        propertyId={p.id}
+                        voteSummary={voteRow}
+                        members={trip.members}
+                        totalVotersCount={trip.groupSize}
+                        isLeading={recommendedTopVoted?.property.id === p.id}
+                      />
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
                         <button
-                          className={`flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-success/10 ${voteRow.userVote === "up" ? "bg-success/10" : ""}`}
+                          className={`flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-success/10 ${voteRow.userVote === "up" ? "bg-success/10 border-success/40 text-success" : ""}`}
                           onClick={() => handleVote(p.id, "up")}
                         >
-                          <ThumbsUp className="h-3.5 w-3.5 text-success" /> <span className="font-medium">Upvote</span>
+                          <ThumbsUp className="h-3.5 w-3.5 text-success" /> <span>Upvote</span>
                         </button>
                         <button
-                          className={`flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:bg-destructive/10 ${voteRow.userVote === "down" ? "bg-destructive/10" : ""}`}
+                          className={`flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-destructive/10 ${voteRow.userVote === "down" ? "bg-destructive/10 border-destructive/40 text-destructive" : ""}`}
                           onClick={() => handleVote(p.id, "down")}
                         >
-                          <ThumbsDown className="h-3.5 w-3.5 text-destructive" /> <span className="font-medium">Downvote</span>
+                          <ThumbsDown className="h-3.5 w-3.5 text-destructive" /> <span>Downvote</span>
                         </button>
+                        
+                        {/* Compare button against other stay */}
+                        {shortlistedRows.length >= 2 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs h-8 px-2 text-primary"
+                            onClick={() => {
+                              const otherRow = shortlistedRows.find((r) => r.property.id !== p.id);
+                              if (otherRow?.property) {
+                                openFaceOffModal(p, otherRow.property);
+                              }
+                            }}
+                          >
+                            Compare
+                          </Button>
+                        )}
+
                         <Button
                           size="sm"
                           variant="outline"
+                          className="text-xs h-8 ml-auto"
                           onClick={() => openReserveForProperty(p.id)}
                           disabled={!isOrganizer || !isReservable || isReserved}
                         >
@@ -1066,68 +1174,28 @@ export default function TripDetail() {
                   {!isExpensesLoading && expenses.length === 0 && <p className="text-sm text-muted-foreground">No expenses added yet.</p>}
                 </div>
               </div>
-              {/* Settlement */}
-              <div className="mt-6 rounded-xl border border-border bg-card p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-heading text-lg font-bold text-foreground">Settlement</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Who owes whom</p>
-                  </div>
-                  <Button size="sm" onClick={handleSettleExpenses} disabled={isSettling}>
-                    {isSettling ? "Calculating..." : "Calculate"}
-                  </Button>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {settlements.map((item, idx) => (
-                    <div key={`${item.from}-${item.to}-${idx}`} className="flex items-center justify-between rounded-lg bg-background p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10 text-xs font-bold text-destructive">{item.from[0]}</div>
-                        <span className="text-sm font-medium text-foreground">{item.from}</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">pays</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">{item.to}</span>
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10 text-xs font-bold text-success">{item.to[0]}</div>
-                      </div>
-                      <span className="font-heading text-sm font-bold text-primary">{formatCurrency(item.amount)}</span>
-                    </div>
-                  ))}
-                  {settlements.length === 0 && <p className="text-sm text-muted-foreground">Click calculate to generate settlements.</p>}
-                </div>
+              {/* Settlement Flow Visualizer */}
+              <div className="mt-8">
+                <SettlementFlowVisualizer
+                  settlements={settlements}
+                  members={trip.members}
+                  expenses={expenses}
+                  onSettleAll={handleSettleExpenses}
+                  isSettling={isSettling}
+                />
               </div>
             </div>
           )}
 
           {activeTab === 2 && (
             <div className="space-y-4">
-              {Array.from({ length: trip.nights }, (_, i) => {
-                const date = new Date(trip.checkIn);
-                date.setDate(date.getDate() + i);
-                return (
-                  <div key={i} className="rounded-xl border border-border bg-card p-5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-heading text-base font-bold text-foreground">Day {i + 1} — {formatDate(date)}</h3>
-                      <Button variant="outline" size="sm" onClick={handleAddActivity}><Plus className="mr-1 h-3.5 w-3.5" /> Add Activity</Button>
-                    </div>
-                    {i === 0 && (
-                      <div className="mt-4 space-y-3">
-                        {[
-                          { time: "10:00 AM", title: "Check-in at villa", cat: "accommodation" },
-                          { time: "01:00 PM", title: "Beach lunch at Curlies", cat: "food" },
-                          { time: "04:00 PM", title: "Explore Anjuna Beach", cat: "sightseeing" },
-                          { time: "08:00 PM", title: "Group dinner & bonfire", cat: "food" },
-                        ].map((act, j) => (
-                          <div key={j} className="flex items-start gap-3 border-l-2 border-primary/30 pl-4">
-                            <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{act.time}</span>
-                            <span className="text-sm text-foreground">{act.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {i > 0 && <p className="mt-3 text-sm text-muted-foreground">No activities planned yet</p>}
-                  </div>
-                );
-              })}
+              <ItineraryTimeline
+                days={itinerarySchedule}
+                groupSize={trip.groupSize}
+                onAddActivity={handleAddTimelineActivity}
+                onDeleteActivity={handleDeleteTimelineActivity}
+                isHostOrOrganizer={isOrganizer}
+              />
             </div>
           )}
 
