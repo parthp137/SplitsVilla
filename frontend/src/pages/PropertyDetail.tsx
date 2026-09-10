@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreateBooking, useProperty, usePropertyReviews, useShortlistProperty, useTrips } from "@/hooks/useApi";
 import type { Property } from "@/types";
 import { readWishlistIds, toggleWishlistId } from "@/lib/wishlist";
+import { PhotoMosaicGallery } from "@/components/property/PhotoMosaicGallery";
+import { GroupCostCalculator } from "@/components/property/GroupCostCalculator";
 
 const HOST_LISTINGS_KEY = "sv_host_listings";
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200";
@@ -278,16 +280,9 @@ export default function PropertyDetail() {
           </div>
         </div>
 
-        {/* Image gallery */}
-        <div className="mt-4 grid gap-2 overflow-hidden rounded-2xl lg:grid-cols-4 lg:grid-rows-2">
-          <div className="lg:col-span-2 lg:row-span-2">
-            <img src={property.images[0]} alt={property.title} className="h-64 w-full object-cover lg:h-full" loading="lazy" />
-          </div>
-          {property.images.slice(1, 5).map((img, i) => (
-            <div key={i}>
-              <img src={img} alt="" className="h-32 w-full object-cover lg:h-full" loading="lazy" />
-            </div>
-          ))}
+        {/* Image gallery Bento Mosaic */}
+        <div className="mt-4">
+          <PhotoMosaicGallery images={property.images} title={property.title} />
         </div>
 
         {/* Content */}
@@ -357,8 +352,15 @@ export default function PropertyDetail() {
             </div>
           </div>
 
-          {/* Right — Booking card */}
-          <div className="lg:w-[380px]">
+          {/* Right — Sidebar with Group Cost Calculator & Booking card */}
+          <div className="lg:w-[400px] space-y-6">
+            <GroupCostCalculator
+              property={property}
+              userTrips={trips}
+              onShortlistToTrip={handleShortlistToTrip}
+              isShortlisting={isShortlisting}
+            />
+
             <div className="sticky top-24 rounded-2xl border border-border bg-card p-6 shadow-card">
               <div className="flex items-baseline gap-1">
                 <span className="font-heading text-2xl font-extrabold text-foreground">{formatCurrency(property.pricePerNight)}</span>
