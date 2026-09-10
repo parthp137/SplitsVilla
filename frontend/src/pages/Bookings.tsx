@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, Ticket, Compass } from "lucide-react";
 import { formatCurrency } from "@/utils/formatCurrency";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,7 @@ import {
   useCreateReview,
 } from "@/hooks/useApi";
 import type { Booking, Property } from "@/types";
+import { DigitalBoardingPassModal } from "@/components/booking/DigitalBoardingPassModal";
 
 const statusStyle: Record<string, string> = { confirmed: "bg-success/10 text-success", completed: "bg-muted text-muted-foreground", cancelled: "bg-destructive/10 text-destructive", pending: "bg-warning/10 text-warning" };
 
@@ -51,6 +52,7 @@ export default function Bookings() {
 
   const [detailsBookingId, setDetailsBookingId] = useState<string | null>(null);
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
+  const [boardingPassBooking, setBoardingPassBooking] = useState<any | null>(null);
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState("");
@@ -205,6 +207,14 @@ export default function Bookings() {
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       <span className="font-heading text-lg font-bold text-foreground">{formatCurrency(b.totalPrice)}</span>
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => setBoardingPassBooking(b)}
+                        >
+                          <Ticket className="h-3.5 w-3.5" /> View Pass
+                        </Button>
                         <Dialog
                           open={detailsBookingId === b.id}
                           onOpenChange={(open) => setDetailsBookingId(open ? b.id : null)}
@@ -345,6 +355,13 @@ export default function Bookings() {
           )}
         </div>
       </div>
+
+      <DigitalBoardingPassModal
+        isOpen={!!boardingPassBooking}
+        onClose={() => setBoardingPassBooking(null)}
+        booking={boardingPassBooking}
+        property={getBookingProperty(boardingPassBooking)}
+      />
 
       <Dialog open={!!cancelBookingId} onOpenChange={(open) => !open && setCancelBookingId(null)}>
         <DialogContent>
