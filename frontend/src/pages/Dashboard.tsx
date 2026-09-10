@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TripCountdownHub } from "@/components/dashboard/TripCountdownHub";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -123,6 +124,11 @@ export default function Dashboard() {
               <Plus className="mr-2 inline h-4 w-4" /> Plan New Trip
             </motion.button>
           </motion.div>
+
+          {/* Hero Trip Countdown Hub */}
+          <div className="mt-8">
+            <TripCountdownHub trips={trips} />
+          </div>
 
           <motion.div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } }}>
             {stats.map((s, i) => (
