@@ -158,6 +158,23 @@ export default function PropertyDetail() {
     }
   };
 
+  const handleShortlistToTrip = async (tripId: string) => {
+    try {
+      await shortlistProperty({ tripId, propertyId: property.id });
+      const selectedTrip = trips.find((trip) => trip.id === tripId);
+      toast({
+        title: "Saved to trip shortlist! ✨",
+        description: selectedTrip ? `${property.title} was added to ${selectedTrip.title}.` : "Property attached to your trip.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Could not save to trip",
+        description: error?.message || "We could not save this property to the trip. Try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const validateBooking = (): boolean => {
     setBookingError(null);
     

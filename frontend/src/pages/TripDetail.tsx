@@ -388,7 +388,7 @@ export default function TripDetail() {
       });
       setItinerarySchedule(generatedDays);
     }
-  }, [trip?.id, trip?.nights, trip?.checkIn]);
+  }, [trip, itinerarySchedule.length]);
 
   const handleAddTimelineActivity = (dayId: string, activity: Omit<Activity, "id">) => {
     setItinerarySchedule((prev) =>

@@ -107,33 +107,38 @@ export default function MapView({
           maxZoom: 19,
         }).addTo(mapRef.current);
 
-        clusterGroupRef.current = new (L as any).MarkerClusterGroup({
-          chunkedLoading: true,
-          maxClusterRadius: 50,
-          spiderfyOnMaxZoom: true,
-          showCoverageOnHover: false,
-          iconCreateFunction: (cluster: any) => {
-            const count = cluster.getChildCount();
-            return L.divIcon({
-              html: `<div style="
-                background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-weight: bold;
-                font-size: 13px;
-                box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-                border: 2px solid white;
-              ">${count}</div>`,
-              iconSize: [36, 36],
-              iconAnchor: [18, 18],
-            });
-          },
-        });
+        const MarkerClusterConstructor = (L as any).MarkerClusterGroup || (L as any).markerClusterGroup;
+        if (typeof MarkerClusterConstructor === "function") {
+          clusterGroupRef.current = new (MarkerClusterConstructor as any)({
+            chunkedLoading: true,
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            iconCreateFunction: (cluster: any) => {
+              const count = cluster.getChildCount();
+              return L.divIcon({
+                html: `<div style="
+                  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+                  width: 36px;
+                  height: 36px;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: white;
+                  font-weight: bold;
+                  font-size: 13px;
+                  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+                  border: 2px solid white;
+                ">${count}</div>`,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],
+              });
+            },
+          });
+        } else {
+          clusterGroupRef.current = L.featureGroup();
+        }
 
         mapRef.current.addLayer(clusterGroupRef.current);
 
@@ -147,7 +152,7 @@ export default function MapView({
         console.error("Map initialization error:", error);
       }
     }
-  }, []);
+  }, [onBoundsChange]);
 
   // Sync popup or icon highlight when hoveredId / selectedId changes
   useEffect(() => {

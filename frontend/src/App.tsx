@@ -107,6 +107,14 @@ const App = () => {
                     }
                   />
                   <Route
+                    path="/trips/create"
+                    element={
+                      <ProtectedRoute>
+                        <CreateTrip />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/trips/:id"
                     element={
                       <ProtectedRoute>
@@ -117,6 +125,7 @@ const App = () => {
                   <Route path="/join/:code" element={<JoinTrip />} />
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/properties/:id" element={<PropertyDetail />} />
+                  <Route path="/property/:id" element={<PropertyDetail />} />
                   <Route path="/converter" element={<CurrencyConverter />} />
                   <Route
                     path="/wishlist"
@@ -144,6 +153,22 @@ const App = () => {
                   />
                   <Route
                     path="/history"
+                    element={
+                      <ProtectedRoute>
+                        <TripHistory />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/history"
+                    element={
+                      <ProtectedRoute>
+                        <TripHistory />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/trips/history"
                     element={
                       <ProtectedRoute>
                         <TripHistory />

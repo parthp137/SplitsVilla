@@ -3,11 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { Search, Bell, Menu, Plus, User, LogOut, Map, Heart, Calendar, Home, Settings, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useApi";
+import { useCurrency, currencyFlags, currencyNames, supportedCurrencies } from "@/utils/formatCurrency";
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
+  const { currency, setCurrency, symbol, flag } = useCurrency();
   const { data: notifications = [] } = useNotifications();
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -106,6 +109,54 @@ export default function Navbar() {
             </>
           )}
 
+          {/* Currency Switcher */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setCurrencyMenuOpen(!currencyMenuOpen);
+                setUserMenuOpen(false);
+              }}
+              className="flex items-center gap-1.5 rounded-full border border-border/80 bg-card/80 px-2.5 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/40 hover:bg-accent shadow-xs"
+              aria-label="Change currency"
+            >
+              <span className="text-sm">{flag}</span>
+              <span className="hidden sm:inline">{currency}</span>
+              <span className="text-muted-foreground font-normal">({symbol})</span>
+            </button>
+
+            {currencyMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setCurrencyMenuOpen(false)} />
+                <div className="absolute right-0 top-12 z-50 w-52 overflow-hidden rounded-2xl border border-border/80 bg-card/95 py-2 shadow-2xl backdrop-blur-md">
+                  <div className="border-b border-border/60 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Select Currency
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {supportedCurrencies.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => {
+                          setCurrency(c);
+                          setCurrencyMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between px-3.5 py-2 text-left text-xs font-semibold transition-colors hover:bg-accent ${
+                          currency === c ? "bg-primary/10 text-primary font-bold" : "text-foreground"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-base">{currencyFlags[c]}</span>
+                          <span>{c}</span>
+                          <span className="text-[11px] text-muted-foreground font-normal">({currencyNames[c]})</span>
+                        </span>
+                        <span className="text-muted-foreground">{currency === c ? "✓" : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           {isAuthenticated && (
             <button
               onClick={() => navigate("/notifications")}
@@ -124,7 +175,10 @@ export default function Navbar() {
           {/* User menu */}
           <div className="relative">
             <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              onClick={() => {
+                setUserMenuOpen(!userMenuOpen);
+                setCurrencyMenuOpen(false);
+              }}
               className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 transition-all hover:border-primary/30 hover:shadow-card"
               aria-label="Open user menu"
             >
