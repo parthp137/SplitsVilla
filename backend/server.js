@@ -15,13 +15,13 @@ import currencyRoutes from "./routes/currency.js";
 import aiRoutes from "./routes/ai.js";
 import usersRoutes from "./routes/users.js";
 
+
 import { errorHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const frontendDistPath = path.resolve(__dirname, "../frontend/dist");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -111,16 +111,10 @@ app.use("/api/currency", currencyRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/users", usersRoutes);
 
+
 // Health check
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-if (isProduction) {
-  app.use(express.static(frontendDistPath));
-
-  app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(frontendDistPath, "index.html"));
-  });
-}
 
 // Error handling
 app.use(errorHandler);
