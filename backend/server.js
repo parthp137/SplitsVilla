@@ -70,13 +70,24 @@ mongoose.connection.on("disconnected", () => {
   console.warn("! MongoDB disconnected");
 });
 
-mongoose
-  .connect(config.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  })
-  .then(() => console.log("✓ MongoDB connected successfully"))
-  .catch((err) => console.error("✗ MongoDB initial connection error:", err.message));
+const connectWithRetry = async (delay = 2000, maxDelay = 30000) => {
+  try {
+    await mongoose.connect(config.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    console.log("✓ MongoDB connected successfully");
+  } catch (err) {
+    console.error(
+      `✗ MongoDB initial connection failed (${err.message}). Retrying in ${delay / 1000}s...`
+    );
+    setTimeout(() => {
+      connectWithRetry(Math.min(delay * 2, maxDelay), maxDelay);
+    }, delay);
+  }
+};
+
+connectWithRetry();
 
 // Health check endpoints
 // 1. Cheap health check (no DB ping, fast for load balancers)
