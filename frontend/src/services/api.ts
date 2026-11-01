@@ -483,6 +483,8 @@ class ApiClient {
       totalBookings: number;
       totalRevenue: number;
       avgRating: number;
+      activeListings: number;
+      archivedListings: number;
     }>("/properties/host/stats");
   }
 }

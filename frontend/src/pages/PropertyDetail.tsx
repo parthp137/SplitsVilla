@@ -375,7 +375,7 @@ export default function PropertyDetail() {
               property={property}
               userTrips={trips}
               onShortlistToTrip={handleShortlistToTrip}
-              isShortlisting={isShortlisting}
+              isShortlisting={isShortlistingProperty}
             />
 
             <div className="sticky top-24 rounded-2xl border border-border bg-card p-6 shadow-card">
