@@ -1,17 +1,14 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import crypto from "crypto";
 import User from "./models/User.js";
 import Property from "./models/Property.js";
 
 dotenv.config();
 
+// Strict production guard: refuse to run against production unless ALLOW_SEED=true
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
-  console.error("Seeding is blocked in production unless ALLOW_SEED=true is explicitly set.");
-  process.exit(1);
-}
-
-if (process.env.NODE_ENV === "production") {
-  console.error("Seeding with hardcoded demo credentials is not permitted in production.");
+  console.error("Seeding is strictly blocked in production unless ALLOW_SEED=true is explicitly set.");
   process.exit(1);
 }
 
@@ -20,27 +17,32 @@ const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/splitsvill
 const seedDatabase = async () => {
   try {
     await mongoose.connect(MONGO_URI);
-    console.log("Connected to MongoDB for seeding...");
+    console.log("Connected to MongoDB for seeding verification...");
 
-    // Check if properties already exist
-    const count = await Property.countDocuments();
-    if (count > 0) {
-      console.log(`Database already has ${count} properties. Skipping seed.`);
+    // Safe guard: strictly refuse to seed into a non-empty database (no destructive drops or deleteMany)
+    const propertyCount = await Property.countDocuments();
+    const userCount = await User.countDocuments();
+    if (propertyCount > 0 || userCount > 0) {
+      console.log(`Database is not empty (${propertyCount} properties, ${userCount} users found). Seeding aborted safely to prevent data modification.`);
+      await mongoose.disconnect();
       process.exit(0);
     }
 
-    // Create a demo host user if none exists
-    let host = await User.findOne({ email: "host@splitsvilla.com" });
-    if (!host) {
-      host = await User.create({
-        name: "SplitsVilla Stays",
-        email: "host@splitsvilla.com",
-        password: "password123",
-        role: "host",
-        isVerified: true,
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-      });
-      console.log("Created demo host user: host@splitsvilla.com");
+    // Dynamic password configuration: env var or cryptographically random one-time password
+    const seedPassword = process.env.SEED_USER_PASSWORD || crypto.randomBytes(16).toString("hex");
+
+    // Create demo host user
+    const host = await User.create({
+      name: "SplitsVilla Stays",
+      email: "host@splitsvilla.com",
+      password: seedPassword,
+      role: "host",
+      isVerified: true,
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+    });
+    console.log("Created demo host user: host@splitsvilla.com");
+    if (!process.env.SEED_USER_PASSWORD) {
+      console.log(`Generated one-time random password for host: ${seedPassword}`);
     }
 
     const sampleProperties = [
@@ -157,9 +159,13 @@ const seedDatabase = async () => {
 
     await Property.insertMany(sampleProperties);
     console.log(`✓ Successfully seeded ${sampleProperties.length} properties!`);
+    await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
     console.error("✗ Seed error:", error);
+    try {
+      await mongoose.disconnect();
+    } catch {}
     process.exit(1);
   }
 };
