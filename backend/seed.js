@@ -5,6 +5,16 @@ import Property from "./models/Property.js";
 
 dotenv.config();
 
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED !== "true") {
+  console.error("Seeding is blocked in production unless ALLOW_SEED=true is explicitly set.");
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV === "production") {
+  console.error("Seeding with hardcoded demo credentials is not permitted in production.");
+  process.exit(1);
+}
+
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/splitsvilla";
 
 const seedDatabase = async () => {

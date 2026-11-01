@@ -3,6 +3,7 @@ services:
     name: splitsvilla
     runtime: node
     plan: free
+    region: singapore
     rootDir: backend
     buildCommand: npm ci
     startCommand: node server.js
@@ -10,6 +11,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: "22"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET

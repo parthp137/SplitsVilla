@@ -37,6 +37,6 @@ const propertySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-propertySchema.index({ city: 1, pricePerNight: 1, rating: -1 });
+propertySchema.index({ "location.city": 1, pricePerNight: 1, rating: -1 });
 
 export default mongoose.model("Property", propertySchema);

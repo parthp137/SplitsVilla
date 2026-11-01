@@ -2,20 +2,17 @@ import express from "express";
 import Property from "../models/Property.js";
 import Booking from "../models/Booking.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { optionalAuth } from "../middleware/auth.js";
+import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
 
 router.get(
   "/",
-  optionalAuth,
+  authMiddleware,
   asyncHandler(async (req, res) => {
-    const range = req.query.range || "month";
+    const range = typeof req.query.range === "string" ? req.query.range : "month";
 
-    const properties = req.userId
-      ? await Property.find({ hostId: req.userId })
-      : await Property.find().limit(20);
-
+    const properties = await Property.find({ hostId: req.userId });
     const propertyIds = properties.map((p) => p._id);
 
     const bookings = propertyIds.length
@@ -26,7 +23,7 @@ router.get(
     const totalBookings = bookings.length;
     const avgRating = properties.length
       ? properties.reduce((sum, p) => sum + (p.rating || 0), 0) / properties.length
-      : 4.8;
+      : 0;
 
     const trend = [
       { name: "Apr", revenue: 185000, bookings: 12, occupancy: 65 },
@@ -39,10 +36,10 @@ router.get(
 
     res.json({
       range,
-      totalRevenue: totalRevenue || 1284500,
-      totalBookings: totalBookings || 48,
+      totalRevenue,
+      totalBookings,
       avgRating: Number(avgRating.toFixed(2)),
-      occupancyRate: 78,
+      occupancyRate: properties.length ? 78 : 0,
       trend,
     });
   })

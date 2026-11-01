@@ -1,26 +1,42 @@
 import jwt from "jsonwebtoken";
+import config from "../config/env.js";
 
 export const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "No token provided" });
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : authHeader?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ["HS256"] });
+    if (!decoded || !decoded.id || decoded.type === "password_reset") {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
     req.userId = decoded.id;
     next();
   } catch (err) {
-    res.status(401).json({ message: "Invalid or expired token" });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
 export const optionalAuth = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : authHeader?.split(" ")[1];
+
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.userId = decoded.id;
-    } catch (err) {
-      // Ignore invalid token, continue as unauthenticated
+      const decoded = jwt.verify(token, config.JWT_SECRET, { algorithms: ["HS256"] });
+      if (decoded && decoded.id && decoded.type !== "password_reset") {
+        req.userId = decoded.id;
+      }
+    } catch {
+      // Ignore invalid token and continue as unauthenticated
     }
   }
   next();

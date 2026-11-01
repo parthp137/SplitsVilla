@@ -33,6 +33,11 @@ const fallbackCoordinates = (seed) => {
   };
 };
 
+const escapeRegex = (str) => {
+  if (typeof str !== "string") return "";
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
 const canViewProperty = (property, userId) => property.isActive || (userId && String(property.hostId) === String(userId));
 
 const buildPropertyData = (body, user, existingProperty = null) => {
@@ -107,14 +112,25 @@ router.get(
     const { city, priceMin, priceMax, type, rating } = req.query;
     const filters = {};
 
-    if (city) filters["location.city"] = new RegExp(city, "i");
-    if (priceMin || priceMax) {
-      filters.pricePerNight = {};
-      if (priceMin) filters.pricePerNight.$gte = parseInt(priceMin);
-      if (priceMax) filters.pricePerNight.$lte = parseInt(priceMax);
+    if (typeof city === "string" && city.trim()) {
+      filters["location.city"] = new RegExp(escapeRegex(city.trim()), "i");
     }
-    if (type) filters.type = type;
-    if (rating) filters.rating = { $gte: parseFloat(rating) };
+    if (priceMin !== undefined || priceMax !== undefined) {
+      const pMin = parseInt(String(priceMin), 10);
+      const pMax = parseInt(String(priceMax), 10);
+      if (!isNaN(pMin) || !isNaN(pMax)) {
+        filters.pricePerNight = {};
+        if (!isNaN(pMin)) filters.pricePerNight.$gte = pMin;
+        if (!isNaN(pMax)) filters.pricePerNight.$lte = pMax;
+      }
+    }
+    if (typeof type === "string" && type.trim()) {
+      filters.type = type.trim();
+    }
+    if (rating !== undefined) {
+      const r = parseFloat(String(rating));
+      if (!isNaN(r)) filters.rating = { $gte: r };
+    }
     filters.isActive = true;
 
     const properties = await Property.find(filters).limit(50);

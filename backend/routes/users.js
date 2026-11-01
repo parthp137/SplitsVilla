@@ -10,15 +10,17 @@ router.get(
   "/search",
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const q = (req.query.q || "").toString().trim();
+    const rawQ = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
-    if (q.length < 2) {
+    if (rawQ.length < 2) {
       return res.json([]);
     }
 
+    const safeQ = rawQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
     const query = {
       _id: { $ne: req.userId },
-      $or: [{ name: { $regex: q, $options: "i" } }, { email: { $regex: q, $options: "i" } }],
+      $or: [{ name: { $regex: safeQ, $options: "i" } }, { email: { $regex: safeQ, $options: "i" } }],
     };
 
     const users = await User.find(query)

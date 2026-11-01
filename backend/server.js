@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import helmet from "helmet";
 import mongoose from "mongoose";
-import path from "path";
-import { fileURLToPath } from "url";
+
+import config from "./config/env.js";
+import { apiLimiter } from "./middleware/rateLimiter.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 import authRoutes from "./routes/auth.js";
 import propertiesRoutes from "./routes/properties.js";
@@ -14,93 +16,88 @@ import notificationsRoutes from "./routes/notifications.js";
 import currencyRoutes from "./routes/currency.js";
 import aiRoutes from "./routes/ai.js";
 import usersRoutes from "./routes/users.js";
-
-
-import { errorHandler } from "./middleware/errorHandler.js";
-
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import analyticsRoutes from "./routes/analytics.js";
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const isProduction = process.env.NODE_ENV === "production";
 
-const normalizeOrigin = (value) => {
-  if (!value) return "";
-  const trimmed = value.trim();
-  if (!trimmed) return "";
+// Trust reverse proxy (Render load balancer / Cloudflare)
+app.set("trust proxy", 1);
 
-  try {
-    return new URL(trimmed).origin;
-  } catch {
-    return trimmed.replace(/\/+$/, "");
-  }
-};
+// Hardened flat query parser (prevents object parsing in queries like ?city[$ne]=x)
+app.set("query parser", "simple");
 
-const isWildcardMatch = (pattern, origin) => {
-  if (!pattern.includes("*")) return false;
+// Security headers
+app.use(helmet());
 
-  const escaped = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*/g, ".*");
-
-  return new RegExp(`^${escaped}$`).test(origin);
-};
-
-// Middleware
-const configuredOrigins = (
-  process.env.CLIENT_URLS || process.env.CLIENT_URL || process.env.RENDER_EXTERNAL_URL || ""
-)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-const defaultLocalOrigins = ["http://localhost:8080", "http://localhost:8082", "http://localhost:5173"];
-const allowedOrigins = [...new Set([...configuredOrigins, ...defaultLocalOrigins].map(normalizeOrigin))];
-console.log(
-  `CORS Origins configured as: ${allowedOrigins.length ? allowedOrigins.join(", ") : "* (all)"}`,
-);
+// Exact-match CORS configuration (no wildcards, credentials: false)
+const allowedOrigins = config.CLIENT_URLS_ARRAY;
+console.log(`CORS allowed origins: [${allowedOrigins.join(", ")}]`);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser requests (no Origin header).
+    // Allow non-browser requests (e.g. mobile apps, curl, server-to-server)
     if (!origin) {
-      callback(null, true);
-      return;
+      return callback(null, true);
     }
 
-    const normalizedOrigin = normalizeOrigin(origin);
-
-    // If no origins are configured, allow all browser origins.
-    if (
-      !allowedOrigins.length ||
-      allowedOrigins.includes(normalizedOrigin) ||
-      allowedOrigins.some((allowedOrigin) => isWildcardMatch(allowedOrigin, normalizedOrigin))
-    ) {
-      callback(null, true);
-      return;
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
 
-    callback(new Error(`CORS blocked for origin: ${normalizedOrigin}`));
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
   },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: false,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
+
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
-app.use(express.json({ limit: "30mb" }));
-app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 
-// MongoDB connection
+// Body limit: 4MB for Base64 image payload tolerance
+app.use(express.json({ limit: "4mb" }));
+app.use(express.urlencoded({ extended: true, limit: "4mb" }));
+
+// General rate limiter on all /api endpoints
+app.use("/api", apiLimiter);
+
+// MongoDB connection with timeouts and lifecycle listeners
+mongoose.connection.on("error", (err) => {
+  console.error("✗ MongoDB connection error:", err.message);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.warn("! MongoDB disconnected");
+});
+
 mongoose
-  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/splitsvilla")
-  .then(() => console.log("✓ MongoDB connected"))
-  .catch((err) => console.error("✗ MongoDB error:", err.message));
+  .connect(config.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  })
+  .then(() => console.log("✓ MongoDB connected successfully"))
+  .catch((err) => console.error("✗ MongoDB initial connection error:", err.message));
 
-// Routes
+// Health check endpoints
+// 1. Cheap health check (no DB ping, fast for load balancers)
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+// 2. Database health check
+app.get("/api/health/db", (req, res) => {
+  const isConnected = mongoose.connection.readyState === 1;
+  if (isConnected) {
+    return res.json({ status: "ok", db: "connected" });
+  }
+  return res.status(503).json({
+    status: "error",
+    db: "disconnected",
+    readyState: mongoose.connection.readyState,
+  });
+});
+
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertiesRoutes);
 app.use("/api/bookings", bookingsRoutes);
@@ -110,26 +107,24 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
+// JSON 404 for unknown /api/* routes
+app.use("/api/*", (req, res) => {
+  res.status(404).json({ message: "API route not found" });
+});
 
-// Health check
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+// Non-API 404
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
 
-
-// Error handling
+// Central error handler (must be last middleware)
 app.use(errorHandler);
 
-// 404
-app.use((req, res) => {
-  if (req.path.startsWith("/api")) {
-    res.status(404).json({ message: "Route not found" });
-    return;
-  }
-
-  res.status(404).send("Not found");
-});
-
 // Start server
-app.listen(PORT, () => {
-  console.log(`\n✓ Server running on http://localhost:${PORT}\n`);
+app.listen(config.PORT, () => {
+  console.log(`\n✓ Server running on http://localhost:${config.PORT}\n`);
 });
+
+export default app;
