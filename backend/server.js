@@ -92,7 +92,11 @@ connectWithRetry();
 // Health check endpoints
 // 1. Cheap health check (no DB ping, fast for load balancers)
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
 });
 
 // 2. Database health check
