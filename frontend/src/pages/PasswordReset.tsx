@@ -1,3 +1,4 @@
+import { api } from "@/services/api";
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -55,19 +56,7 @@ export default function PasswordReset() {
       const result = RequestResetSchema.parse({ email: requestEmail });
       setRequestLoading(true);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/request-password-reset`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: result.email }),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to request password reset");
-      }
+      await api.requestPasswordReset(result.email);
 
       toast({
         title: "Check your email",
@@ -101,22 +90,7 @@ export default function PasswordReset() {
       const result = ResetPasswordSchema.parse({ password, confirmPassword });
       setResetLoading(true);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/reset-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: resetToken,
-            newPassword: result.password,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to reset password");
-      }
+      await api.resetPassword(resetToken || "", result.password);
 
       toast({
         title: "Password reset successful",

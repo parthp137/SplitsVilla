@@ -1,3 +1,4 @@
+import { compressImage } from "@/utils/imageCompressor";
 import { useMemo, useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MapPin, Calendar, Users, Copy, ThumbsUp, ThumbsDown, Plus, Sparkles, X, UserPlus, Trash2 } from "lucide-react";
@@ -608,12 +609,14 @@ export default function TripDetail() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setExpenseForm((prev) => ({ ...prev, receipt: String(reader.result || "") }));
-      toast({ title: "Receipt attached" });
-    };
-    reader.readAsDataURL(file);
+    compressImage(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.75 })
+      .then((compressed) => {
+        setExpenseForm((prev) => ({ ...prev, receipt: compressed }));
+        toast({ title: "Receipt attached" });
+      })
+      .catch(() => {
+        toast({ title: "Upload failed", description: "Could not process image.", variant: "destructive" });
+      });
   };
 
   if (isTripLoading) {

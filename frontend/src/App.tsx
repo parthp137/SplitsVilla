@@ -1,3 +1,4 @@
+import { api } from "@/services/api";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import React, { Suspense, lazy } from "react";
@@ -33,37 +34,46 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+
+function ServerWakeUpBanner() {
+  const [isWakingUp, setIsWakingUp] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleWakingUp = (e: Event) => {
+      const customEvent = e as CustomEvent<{ wakingUp: boolean }>;
+      setIsWakingUp(Boolean(customEvent.detail?.wakingUp));
+    };
+    window.addEventListener("sv:waking-up", handleWakingUp);
+    return () => {
+      window.removeEventListener("sv:waking-up", handleWakingUp);
+    };
+  }, []);
+
+  if (!isWakingUp) return null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-950/90 px-4 py-3 text-xs font-medium text-amber-200 shadow-xl backdrop-blur transition-all duration-300"
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+      </span>
+      <span>Server is waking up, this can take up to a minute...</span>
+    </div>
+  );
+}
+
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Apply dark mode to root on mount
+  // Apply dark mode to root on mount and fire warm-up ping
   React.useEffect(() => {
     document.documentElement.classList.add("dark");
-    
-    // Token validation on app startup
-    const token = localStorage.getItem("token");
-    if (token) {
-      const validateToken = async () => {
-        try {
-          const response = await fetch(
-            `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/profile`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (response.status === 401) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            window.location.href = "/login";
-          }
-        } catch (error) {
-          console.error("Token validation error:", error);
-        }
-      };
-      validateToken();
-
-      // Token refresh every 5 minutes
-      const interval = setInterval(validateToken, 5 * 60 * 1000);
-      return () => clearInterval(interval);
-    }
+    // Fire-and-forget warm-up to wake up Render free tier backend
+    api.getHealth().catch(() => {});
   }, []);
 
   return (
@@ -74,6 +84,7 @@ const App = () => {
           <Toaster />
           <BrowserRouter>
             <Navbar />
+            <ServerWakeUpBanner />
             <CommandPalette />
             <main className="min-h-[calc(100vh-4rem)]">
               <Suspense fallback={<FormSkeleton />}>

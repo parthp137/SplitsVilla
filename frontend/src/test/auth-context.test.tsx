@@ -7,6 +7,7 @@ import type { User } from "@/types";
 vi.mock("@/services/api", () => ({
   api: {
     setToken: vi.fn(),
+    clearToken: vi.fn(),
     getProfile: vi.fn(),
     login: vi.fn(),
     register: vi.fn(),
@@ -67,5 +68,33 @@ describe("AuthProvider", () => {
 
     expect(api.logout).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("auth-state")).toHaveTextContent("no");
+  });
+  it("preserves stored token on server cold start / timeout / 503", async () => {
+    localStorage.setItem("sv_token", "saved-token-123");
+    vi.mocked(api.getProfile).mockRejectedValueOnce({ status: 503, code: "503", message: "Server waking up" });
+
+    render(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("loading-state")).toHaveTextContent("ready"));
+    expect(localStorage.getItem("sv_token")).toBe("saved-token-123");
+    expect(api.clearToken).not.toHaveBeenCalled();
+  });
+
+  it("clears stored token on explicit 401 Unauthorized", async () => {
+    localStorage.setItem("sv_token", "invalid-expired-token");
+    vi.mocked(api.getProfile).mockRejectedValueOnce({ status: 401, code: "401", message: "Unauthorized" });
+
+    render(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("loading-state")).toHaveTextContent("ready"));
+    expect(api.clearToken).toHaveBeenCalledTimes(1);
   });
 });

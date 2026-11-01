@@ -27,9 +27,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const profile = await api.getProfile();
           setUser(profile);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to restore session:", error);
-          localStorage.removeItem("sv_token");
+          // Only clear stored token on explicit 401 Unauthorized. Keep token on network error, cold start, 502/503/504 or timeout.
+          if (error?.status === 401 || error?.code === "401") {
+            api.clearToken();
+          }
         }
       }
       setIsLoading(false);

@@ -1,3 +1,4 @@
+import { compressImage } from "@/utils/imageCompressor";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -181,7 +182,7 @@ export default function HostDashboard() {
     }
 
     const existing = parseImageEntries(editForm.imageUrls);
-    const remainingSlots = Math.max(0, 6 - existing.length);
+    const remainingSlots = Math.max(0, 5 - existing.length);
     const acceptedFiles = Array.from(files).slice(0, remainingSlots);
 
     const validFiles = acceptedFiles.filter((file) => {
@@ -197,15 +198,7 @@ export default function HostDashboard() {
     });
 
     const uploadedDataUrls = await Promise.all(
-      validFiles.map(
-        (file) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ""));
-            reader.onerror = () => reject(new Error("Could not read image"));
-            reader.readAsDataURL(file);
-          }),
-      ),
+      validFiles.map((file) => compressImage(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.75 }))
     );
 
     if (uploadedDataUrls.length > 0) {

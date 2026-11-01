@@ -21,7 +21,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useApiAdvanced } from "@/hooks/useApiAdvanced";
+import { api } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
 import { formatCurrency, formatCurrencyCompact, useCurrency } from "@/utils/formatCurrency";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -88,10 +89,10 @@ export default function AnalyticsDashboard() {
   const { currency } = useCurrency();
   const { toast } = useToast();
 
-  const { data: analyticsData } = useApiAdvanced<any>(
-    `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/analytics?range=${timeRange}`,
-    { debounceMs: 300 }
-  );
+  const { data: analyticsData } = useQuery({
+    queryKey: ["analytics", timeRange],
+    queryFn: () => api.getAnalytics(timeRange),
+  });
 
   // Revenue & bookings trend chart data
   const revenueTrendData = [

@@ -34,6 +34,7 @@ export default function CurrencyConverter() {
               <p className="font-heading text-3xl font-extrabold text-primary">{result.toLocaleString()} {to}</p>
             </div>
           )}
+          <p className="mt-4 text-center text-xs text-muted-foreground">* Indicative rates only</p>
         </div>
       </div>
     </div>

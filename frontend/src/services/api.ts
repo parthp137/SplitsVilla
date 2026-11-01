@@ -1,7 +1,7 @@
 import { User, Property, Booking, Review, Trip, Expense, Notification, TripInvite, UserSearchResult, VoteSummary } from "@/types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
-const REQUEST_TIMEOUT = 15000; // 15 seconds
+export const API_BASE = import.meta.env.VITE_API_URL || "/api";
+const REQUEST_TIMEOUT = 60000; // 15 seconds
 
 interface ApiResponse<T> {
   success: boolean;
@@ -9,17 +9,21 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-interface ApiError {
+export interface ApiError {
   message: string;
   code: string;
+  status?: number;
 }
 
 class ApiClient {
   private baseURL: string;
   private token: string | null;
+  private slowRequestTimers = new Map<number, ReturnType<typeof setTimeout>>();
+  private slowRequestIds = new Set<number>();
+  private nextRequestId = 1;
 
   constructor() {
-    this.baseURL = API_BASE_URL;
+    this.baseURL = API_BASE;
     this.token = localStorage.getItem("sv_token");
   }
 
@@ -31,6 +35,36 @@ class ApiClient {
   clearToken() {
     this.token = null;
     localStorage.removeItem("sv_token");
+  }
+
+  private emitWakingUpState() {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("sv:waking-up", {
+          detail: { wakingUp: this.slowRequestIds.size > 0 },
+        })
+      );
+    }
+  }
+
+  private startSlowTimer(requestId: number) {
+    const timer = setTimeout(() => {
+      this.slowRequestIds.add(requestId);
+      this.emitWakingUpState();
+    }, 5000);
+    this.slowRequestTimers.set(requestId, timer);
+  }
+
+  private clearSlowTimer(requestId: number) {
+    const timer = this.slowRequestTimers.get(requestId);
+    if (timer) {
+      clearTimeout(timer);
+      this.slowRequestTimers.delete(requestId);
+    }
+    if (this.slowRequestIds.has(requestId)) {
+      this.slowRequestIds.delete(requestId);
+      this.emitWakingUpState();
+    }
   }
 
   private transformResponse<T>(data: any): T {
@@ -55,58 +89,96 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const headers = new Headers(options.headers || {});
-    if (!headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
+    const method = (options.method || "GET").toUpperCase();
+    const isIdempotentGet = method === "GET";
+    const maxRetries = isIdempotentGet ? 2 : 0;
+    let attempt = 0;
 
-    if (this.token) {
-      headers.set("Authorization", `Bearer ${this.token}`);
-    }
-
-    // Create timeout abort controller
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+    const requestId = this.nextRequestId++;
+    this.startSlowTimer(requestId);
 
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, {
-        ...options,
-        headers,
-        signal: controller.signal,
-      });
+      while (true) {
+        attempt++;
+        const headers = new Headers(options.headers || {});
+        if (!headers.has("Content-Type")) {
+          headers.set("Content-Type", "application/json");
+        }
 
-      clearTimeout(timeoutId);
+        if (this.token) {
+          headers.set("Authorization", `Bearer ${this.token}`);
+        }
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw {
-          message: error.message || `HTTP ${response.status}`,
-          code: response.status.toString(),
-        };
-      }
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-      const data = await response.json();
-      return this.transformResponse<T>(data);
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      
-      // Handle timeout
-      if (err.name === 'AbortError') {
-        throw {
-          message: `Request timeout (${REQUEST_TIMEOUT}ms). Server is slow or unreachable.`,
-          code: "TIMEOUT",
-        };
+        try {
+          const response = await fetch(`${this.baseURL}${endpoint}`, {
+            ...options,
+            headers,
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const status = response.status;
+            // Retry idempotent GETs on gateway / cold-start error codes (502, 503, 504)
+            if (isIdempotentGet && attempt <= maxRetries && [502, 503, 504].includes(status)) {
+              const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+              await new Promise((resolve) => setTimeout(resolve, backoffMs));
+              continue;
+            }
+
+            const error = await response.json().catch(() => ({}));
+            throw {
+              message: error.message || `HTTP ${status}`,
+              code: status.toString(),
+              status,
+            };
+          }
+
+          const data = await response.json();
+          return this.transformResponse<T>(data);
+        } catch (err: any) {
+          clearTimeout(timeoutId);
+
+          // If already a structured ApiError that is not retryable, rethrow
+          if (err && typeof err.status === "number" && !([502, 503, 504].includes(err.status) && isIdempotentGet && attempt <= maxRetries)) {
+            throw err;
+          }
+
+          const isTimeout = err?.name === "AbortError";
+          const isNetwork = err instanceof TypeError;
+
+          // Retry idempotent GETs on network errors or timeouts
+          if (isIdempotentGet && attempt <= maxRetries && (isTimeout || isNetwork)) {
+            const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+            continue;
+          }
+
+          if (isTimeout) {
+            throw {
+              message: `Request timeout (${REQUEST_TIMEOUT}ms). Server is slow or unreachable.`,
+              code: "TIMEOUT",
+              status: 504,
+            };
+          }
+
+          if (isNetwork) {
+            throw {
+              message: `Network error: ${err.message}. Is the API running? (${this.baseURL})`,
+              code: "NETWORK_ERROR",
+              status: 503,
+            };
+          }
+
+          throw err;
+        }
       }
-      
-      // Handle network errors
-      if (err instanceof TypeError) {
-        throw {
-          message: `Network error: ${err.message}. Is the API running? (${this.baseURL})`,
-          code: "NETWORK_ERROR",
-        };
-      }
-      // Re-throw API errors
-      throw err;
+    } finally {
+      this.clearSlowTimer(requestId);
     }
   }
 
@@ -486,6 +558,30 @@ class ApiClient {
       activeListings: number;
       archivedListings: number;
     }>("/properties/host/stats");
+  }
+  // ===== System Health =====
+  async getHealth() {
+    return this.request<{ status: string }>("/health");
+  }
+
+  // ===== Password Reset =====
+  async requestPasswordReset(email: string) {
+    return this.request<{ message: string }>("/auth/request-password-reset", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    return this.request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    });
+  }
+
+  // ===== Analytics =====
+  async getAnalytics(range: string = "month") {
+    return this.request<any>(`/analytics?range=${encodeURIComponent(range)}`);
   }
 }
 

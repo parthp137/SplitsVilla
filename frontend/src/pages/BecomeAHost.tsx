@@ -1,3 +1,4 @@
+import { compressImage } from "@/utils/imageCompressor";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -287,11 +288,11 @@ export default function BecomeAHost() {
     }
 
     const existing = uploadedImages;
-    const remainingSlots = Math.max(0, 6 - existing.length);
+    const remainingSlots = Math.max(0, 5 - existing.length);
     if (remainingSlots <= 0) {
       toast({
         title: "Image limit reached",
-        description: "You can upload up to 6 photos.",
+        description: "You can upload up to 5 photos.",
         variant: "destructive",
       });
       return;
@@ -321,15 +322,7 @@ export default function BecomeAHost() {
     });
 
     const dataUrls = await Promise.all(
-      validFiles.map(
-        (file) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ""));
-            reader.onerror = () => reject(new Error("Could not read image"));
-            reader.readAsDataURL(file);
-          }),
-      ),
+      validFiles.map((file) => compressImage(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.75 }))
     );
 
     if (dataUrls.length > 0) {
@@ -735,7 +728,7 @@ export default function BecomeAHost() {
                         Upload photos
                         <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
                       </label>
-                      <p className="mt-1 text-xs text-muted-foreground">Upload up to 6 photos (max 2.5MB each).</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Upload up to 5 photos (max 2.5MB each, auto-compressed).</p>
 
                       {uploadedImages.length > 0 && (
                         <div className="mt-3 grid grid-cols-3 gap-2">

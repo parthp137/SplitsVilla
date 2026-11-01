@@ -152,6 +152,9 @@ export default function Navbar() {
                       </button>
                     ))}
                   </div>
+                  <div className="border-t border-border/60 px-3 py-1.5 text-center text-[10px] text-muted-foreground">
+                    * Indicative rates only
+                  </div>
                 </div>
               </>
             )}
