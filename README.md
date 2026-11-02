@@ -2,7 +2,7 @@
 
 A full-stack web application for planning group villa getaways, coordinating member stays, and settling shared trip expenses.
 
-**Live Demo**: [https://splits-villa.vercel.app](https://splits-villa.vercel.app) (The backend spins down after inactivity, so the initial request may take up to a minute to respond).
+**Live Demo**: [https://splits-villa.vercel.app](https://splits-villa.vercel.app)
 
 ---
 
